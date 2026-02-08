@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { Command } from "commander";
 import select from "@inquirer/select";
 import chalk from "chalk";
@@ -8,7 +6,7 @@ import path from "path";
 
 const program = new Command();
 
-program.name("nural").description("Nural Framework CLI").version("0.3.5");
+program.name("nural").description("Nural Framework CLI").version("0.3.7");
 
 program
   .command("new <project-name>")
@@ -61,7 +59,7 @@ program
         start: "node dist/index.js",
       },
       dependencies: {
-        nural: "^0.3.5",
+        nural: "^0.3.7",
         [framework]: framework === "express" ? "^5.0.0" : "^5.0.0", // Using explicit versions for peer deps
         zod: "^3.22.4",
       },
