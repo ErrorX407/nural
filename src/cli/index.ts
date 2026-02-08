@@ -8,7 +8,7 @@ import path from "path";
 
 const program = new Command();
 
-program.name("nural").description("Nural Framework CLI").version("0.3.3");
+program.name("nural").description("Nural Framework CLI").version("0.3.4");
 
 program
   .command("new <project-name>")
@@ -49,12 +49,12 @@ program
       version: "1.0.0",
       main: "dist/index.js",
       scripts: {
-        dev: "tsx watch src/index.ts",
+        dev: "nodemon --exec tsx src/index.ts",
         build: "tsup src/index.ts --format cjs,esm --dts",
         start: "node dist/index.js",
       },
       dependencies: {
-        nural: "^0.2.0",
+        nural: "^0.3.3",
         [framework]: framework === "express" ? "^5.0.0" : "^5.0.0", // Using explicit versions for peer deps
         zod: "^3.22.4",
       },
@@ -62,6 +62,7 @@ program
         tsx: "^4.7.1",
         tsup: "^8.0.2",
         typescript: "^5.3.3",
+        nodemon: "^3.1.11",
         "@types/node": "^20.11.24",
         ...(framework === "express" ? { "@types/express": "^5.0.0" } : {}),
       },
@@ -162,6 +163,8 @@ export const ${name}Route = createRoute({
   handler: async () => {
     return { message: "Hello from ${name}" };
   },
+
+  export const ${name}Routes = [${name}Route]
 });
 `;
         const routesDir = path.join(srcDir, "routes");

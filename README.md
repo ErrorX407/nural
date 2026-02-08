@@ -4,7 +4,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark-mode.png">
     <source media="(prefers-color-scheme: light)" srcset="assets/logo-light-mode.png">
-    <img alt="Nural Logo" src="assets/logo-light-mode.png" width="200">
+    <img alt="Nural Logo" src="assets/logo-light-mode.png" width="300">
   </picture>
 </p>
 
