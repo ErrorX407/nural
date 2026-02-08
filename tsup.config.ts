@@ -11,7 +11,17 @@ export default defineConfig({
   minify: false, // Don't minify for library usage (better debugging)
   outDir: "dist",
   target: "es2020",
-  external: ["fastify", "express"], // Don't bundle peer dependencies
+  external: [
+    "fastify",
+    "express",
+    "commander",
+    "chalk",
+    "fs-extra",
+    "zod",
+    "inquirer",
+    "@asteasolutions/zod-to-openapi",
+    "swagger-ui-express",
+  ], // Don't bundle dependencies
   shims: true, // Inject shims for __dirname, require, etc. in ESM
   banner: {
     js: "#!/usr/bin/env node",
