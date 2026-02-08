@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/nural"><img src="https://img.shields.io/npm/v/nural.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/ "><img src="https://img.shields.io/npm/v/nural.svg" alt="npm version"></a>
   <a href="https://github.com/ErrorX407/nural/actions/workflows/ci.yml"><img src="https://github.com/ErrorX407/nural/actions/workflows/ci.yml/badge.svg" alt="Build Status"></a>
   <img src="https://img.shields.io/npm/l/nural.svg" alt="license">
   <a href="https://www.npmjs.com/package/nural"><img src="https://img.shields.io/npm/dm/nural.svg" alt="Downloads"></a>
@@ -180,8 +180,6 @@ if (!token) {
 
 ---
 
-````
-
 ## Global Error Handler
 
 ```typescript
@@ -208,9 +206,59 @@ const app = new Nural({
     logger: (err, ctx) => winston.error(err.message, { path: ctx.path }),
   },
 });
-````
+```
 
 **Smart defaults:** Automatically maps `"unauthorized"` → 401, `"not found"` → 404, Zod errors → 400.
+
+### Available Exceptions
+
+| Exception                       | Status Code |
+| :------------------------------ | :---------- |
+| `BadRequestException`           | 400         |
+| `UnauthorizedException`         | 401         |
+| `ForbiddenException`            | 403         |
+| `NotFoundException`             | 404         |
+| `ConflictException`             | 409         |
+| `GoneException`                 | 410         |
+| `PayloadTooLargeException`      | 413         |
+| `UnsupportedMediaTypeException` | 415         |
+| `UnprocessableEntityException`  | 422         |
+| `InternalServerErrorException`  | 500         |
+| `NotImplementedException`       | 501         |
+| `BadGatewayException`           | 502         |
+| `ServiceUnavailableException`   | 503         |
+| `GatewayTimeoutException`       | 504         |
+
+---
+
+## Logger
+
+Nural comes with a built-in, zero-dependency logger that is lightweight and colorful.
+
+```typescript
+import { Logger } from "nural";
+
+const logger = new Logger("MyService");
+
+logger.log("This is a log message");
+logger.warn("Be careful!");
+logger.error("Something went wrong");
+// Output: [Nural] 1234 - 2026-02-08... [MyService] This is a log message
+```
+
+### HTTP Logger
+
+The HTTP logger middleware is enabled by default and logs all incoming requests with their status and duration.
+
+```typescript
+const app = new Nural({
+  logger: {
+    enabled: true,
+    showUserAgent: true, // Log User-Agent header
+    showTime: true, // Log request duration (default: true)
+  },
+});
+```
 
 ---
 
@@ -219,14 +267,80 @@ const app = new Nural({
 ```typescript
 const app = new Nural({
   framework: "fastify", // or 'express'
-  cors: true, // Enable CORS
-  helmet: true, // Enable security headers
+  cors: true, // Enable CORS with defaults
+  helmet: true, // Enable security headers with defaults
+
+  // Documentation
   docs: {
     enabled: true,
-    title: "My API",
-    version: "2.0.0",
-    description: "My awesome API",
     path: "/api-docs",
+    ui: "scalar", // 'scalar' (default) or 'swagger'
+
+    // Full OpenAPI Customization
+    openApi: {
+      info: {
+        title: "My API",
+        version: "2.0.0",
+        description: "My awesome API",
+      },
+      servers: [{ url: "https://api.example.com" }],
+      // Add Security Schemes (e.g., API Key, Bearer Token)
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+          },
+        },
+      },
+      // Apply Global Security
+      security: [{ bearerAuth: [] }],
+    },
+
+    // Scalar UI Options (fully typed)
+    scalar: {
+      theme: "moon", // 'alternate', 'default', 'moon', 'purple', 'solarized', etc.
+      layout: "modern",
+      showSidebar: true,
+      hideModels: true,
+      darkMode: true,
+      // Custom Metadata
+      metaData: { title: "API Docs" },
+      // Authentication Pre-fill
+      authentication: {
+        preferredSecurityScheme: "bearerAuth",
+        securitySchemes: {
+          bearerAuth: { token: "EXAMPLE_TOKEN" },
+        },
+      },
+    },
+
+    // Swagger UI Options (fully typed)
+    swagger: {
+      theme: "outline", // 'outline', 'classic', or 'no-theme'
+      options: {
+        persistAuthorization: true,
+        docExpansion: "list",
+        defaultModelsExpandDepth: -1,
+        filter: true,
+        syntaxHighlight: { theme: "monokai" },
+      },
+    },
+  },
+
+  // Logger
+  logger: {
+    enabled: true,
+    showUserAgent: false,
+    showTime: true,
+  },
+
+  // Error Handling
+  errorHandler: {
+    handler: customHandler, // Optional custom handler
+    includeStack: false, // Hide stack traces in production
+    logErrors: true, // Log errors to console
   },
 });
 ```
@@ -237,19 +351,63 @@ const app = new Nural({
 
 ### `createRoute(config)`
 
-| Property         | Type                        | Description                    |
-| ---------------- | --------------------------- | ------------------------------ |
-| `method`         | `HttpMethod`                | GET, POST, PUT, PATCH, DELETE  |
-| `path`           | `string`                    | Route path (supports `:param`) |
-| `summary`        | `string?`                   | Short description for docs     |
-| `description`    | `string?`                   | Detailed description           |
-| `tags`           | `string[]?`                 | Grouping for docs              |
-| `middleware`     | `array?`                    | Middleware functions           |
-| `request.params` | `ZodSchema?`                | Path params validation         |
-| `request.query`  | `ZodSchema?`                | Query params validation        |
-| `request.body`   | `ZodSchema?`                | Body validation                |
-| `responses`      | `Record<number, ZodSchema>` | Response schemas               |
-| `handler`        | `function`                  | Route handler                  |
+| Property         | Type                        | Description                                    |
+| ---------------- | --------------------------- | ---------------------------------------------- |
+| `method`         | `HttpMethod`                | GET, POST, PUT, PATCH, DELETE                  |
+| `path`           | `string`                    | Route path (supports `:param`)                 |
+| `summary`        | `string?`                   | Short description for docs                     |
+| `description`    | `string?`                   | Detailed description                           |
+| `tags`           | `string[]?`                 | Grouping for docs                              |
+| `middleware`     | `array?`                    | Middleware functions                           |
+| `request.params` | `ZodSchema?`                | Path params validation                         |
+| `request.query`  | `ZodSchema?`                | Query params validation                        |
+| `request.body`   | `ZodSchema?`                | Body validation                                |
+| `responses`      | `Record<number, ZodSchema>` | Response schemas                               |
+| `security`       | `array?`                    | OpenAPI security (e.g. `[{ bearerAuth: [] }]`) |
+| `openapi`        | `object?`                   | OpenAPI operation overrides                    |
+| `handler`        | `function`                  | Route handler                                  |
+
+### Per-Route Configuration (Security & Headers)
+
+You can define security requirements or override OpenAPI properties directly on the route:
+
+```typescript
+const protectedRoute = createRoute({
+  method: "GET",
+  path: "/protected",
+  // Define security requirements
+  security: [{ bearerAuth: [] }],
+  // Override OpenAPI operation (e.g., custom headers)
+  openapi: {
+    parameters: [
+      {
+        in: "header",
+        name: "X-Custom-Header",
+        schema: { type: "string" },
+        required: true,
+      },
+    ],
+  },
+  handler: async () => {
+    return { secret: "data" };
+  },
+});
+```
+
+### Route Context (`ctx`)
+
+The `handler` receives a `ctx` object containing:
+
+```typescript
+{
+  params: { id: "123" },      // Validated path params
+  query: { page: 1 },         // Validated query params
+  body: { name: "John" },     // Validated body
+  req: Request,               // Native request object
+  res: Response,              // Native response object
+  ...middlewareProps          // Properties injected by middleware
+}
+```
 
 ### `defineMiddleware(fn)`
 

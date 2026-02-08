@@ -107,6 +107,16 @@ export interface RouteConfig<
   };
   /** Response schemas by status code */
   responses?: Record<number, z.ZodTypeAny>;
+  /**
+   * OpenAPI Security Requirements
+   * @example [{ bearerAuth: [] }]
+   */
+  security?: Array<Record<string, string[]>>;
+  /**
+   * OpenAPI Operation overrides
+   * Allows full customization of the operation (e.g., custom headers, externalDocs)
+   */
+  openapi?: Record<string, any>;
   /** Route handler function */
   handler: RouteHandler<P, Q, B, R, M>;
 }

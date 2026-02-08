@@ -153,9 +153,14 @@ export class Nural {
     });
 
     this.adapter.registerStaticRoute("get", this.docsConfig.path, async () => {
+      const html =
+        this.docsConfig.ui === "swagger"
+          ? this.docsGenerator.getSwaggerHtml(specPath)
+          : this.docsGenerator.getScalarHtml(specPath);
+
       return {
         type: "html",
-        data: this.docsGenerator.getScalarHtml(specPath),
+        data: html,
       };
     });
   }

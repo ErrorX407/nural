@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-02-08
+
+### Added
+
+- **Advanced Documentation System**
+  - **Swagger UI** Support: Switch between Scalar and Swagger UI with `ui: 'swagger'`.
+  - **Flexible OpenAPI Configuration**: Full control over OpenAPI spec (Info, Servers, Components, Tags, ExternalDocs).
+  - **Security Schemes**: Easy configuration for API Key, Bearer Auth (JWT), and OAuth2.
+  - **Strict Typing**: Detailed TypeScript interfaces for `ScalarConfig` and `SwaggerConfig` with Intellisense.
+  - **Scalar Customization**: Support for themes, layouts, sidebar settings, and more.
+  - **Swagger Customization**: Support for outline/classic themes, persistant auth, and deep linking.
+  - **Per-Route Configuration**:
+    - **Route Security**: Define security schemes (e.g., `bearerAuth`) directly on routes.
+    - **OpenAPI Overrides**: Add custom headers, external docs, or other OpenAPI fields per route.
+
+---
+
 ## [0.1.0] - 2026-02-08
 
 ### Added

@@ -38,12 +38,72 @@ export const appConfig: NuralConfig = {
 
   // API documentation
   docs: {
-    title: "Full-Featured API",
-    version: "1.0.0",
-    description:
-      "Production-grade REST API with authentication, CRUD, and validation",
+    enabled: true,
     path: "/docs",
-    ui: "scalar",
+    ui: "scalar", // Try "swagger" to see Swagger UI
+
+    // OpenAPI Customization
+    openApi: {
+      info: {
+        title: "Full-Featured API",
+        version: "1.0.0",
+        description:
+          "Production-grade REST API with authentication, CRUD, and validation",
+        contact: {
+          name: "API Support",
+          email: "support@example.com",
+        },
+      },
+      servers: [{ url: "http://localhost:3000", description: "Local Server" }],
+      // Security Definitions
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+          },
+        },
+      },
+      // Apply security globally
+      security: [{ bearerAuth: [] }],
+    },
+
+    // Scalar UI Options
+    scalar: {
+      theme: "deepSpace", // Try 'moon', 'purple', 'solarized', etc.
+      layout: "modern",
+      showSidebar: true,
+      hideModels: true,
+      hideDownloadButton: false,
+      hideClientButton: false,
+      darkMode: true,
+      // Custom Metadata
+      metaData: {
+        title: "Nural API Documentation",
+      },
+      // Authentication
+      authentication: {
+        preferredSecurityScheme: "bearerAuth",
+        securitySchemes: {
+          bearerAuth: {
+            token: "EXAMPLE_TOKEN",
+          },
+        },
+      },
+    },
+
+    // Swagger UI Options
+    // swagger: {
+    //   theme: "classic", // 'outline', 'classic', or 'no-theme'
+    //   options: {
+    //     persistAuthorization: true,
+    //     filter: true,
+    //     displayRequestDuration: true,
+    //     docExpansion: "list",
+    //     defaultModelsExpandDepth: -1, // Hide models by default
+    //   },
+    // },
   },
 
   // Logger configuration

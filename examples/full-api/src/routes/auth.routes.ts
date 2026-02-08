@@ -58,6 +58,20 @@ export const meRoute = createRoute({
     200: UserSchema.omit({ createdAt: true }),
     401: ErrorSchema,
   },
+  // Route-specific security
+  security: [{ bearerAuth: [] }],
+  // Custom OpenAPI overrides (e.g., custom header)
+  openapi: {
+    parameters: [
+      {
+        in: "header",
+        name: "X-Custom-Header",
+        schema: { type: "string" },
+        required: false,
+        description: "Custom header example",
+      },
+    ],
+  },
   handler: async (ctx) => {
     const { user } = ctx as {
       user: { id: string; email: string; name: string; role: string };
