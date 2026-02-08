@@ -12,5 +12,8 @@ export default defineConfig({
   outDir: "dist",
   target: "es2020",
   external: ["fastify", "express"], // Don't bundle peer dependencies
-  // No need for onSuccess trick because we use .cjs extension
+  shims: true, // Inject shims for __dirname, require, etc. in ESM
+  banner: {
+    js: "#!/usr/bin/env node",
+  },
 });
