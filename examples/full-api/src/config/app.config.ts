@@ -6,7 +6,7 @@ import type { NuralConfig } from "../../../../src";
 import { errorHandler } from "./error-handler";
 
 export const appConfig: NuralConfig = {
-  framework: "express",
+  framework: "fastify",
 
   // CORS configuration
   cors: {
