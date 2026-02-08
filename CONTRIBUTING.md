@@ -34,12 +34,46 @@ npm test
 - **Linting**: Run `npm run lint` to catch potential issues.
 - **Commits**: Use [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat: add new adapter`, `fix: resolve cors issue`).
 
-## 🚀 Submitting a Pull Request
+## 🚀 Contribution Workflow ("Fork & Pull")
 
-1.  Push your branch to GitHub.
-2.  Open a Pull Request against the `main` branch.
-3.  Describe your changes detailedly.
-4.  Wait for review! We aim to review PRs within 48 hours.
+We use the "Fork & Pull" workflow. Here's how to contribute:
+
+1.  **Fork the Repository**: Click the "Fork" button on the top right of this page.
+2.  **Clone Your Fork**:
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/nural.git
+    cd nural
+    ```
+3.  **Create a Branch**: Always create a new branch for your work.
+    ```bash
+    git checkout -b feat/amazing-feature
+    # or
+    git checkout -b fix/annoying-bug
+    ```
+4.  **Make Changes**: Write your code and tests.
+5.  **Commit**: Use [Conventional Commits](https://www.conventionalcommits.org/).
+    ```bash
+    git commit -m "feat: add support for fastify adapter"
+    ```
+6.  **Push to Your Fork**:
+    ```bash
+    git push origin feat/amazing-feature
+    ```
+7.  **Open a Pull Request (PR)**:
+    - Go to the original `nural` repository.
+    - Click "New Pull Request".
+    - Select your fork and branch.
+    - Fill out the PR template clearly.
+
+### Branch Protection & Review Process
+
+The `main` branch is protected. To merge:
+
+- **Review Required**: At least one maintainer must approve your PR.
+- **Status Checks**: All CI tests (`npm test`, `npm run lint`, `npm run build`) must pass.
+- **No Direct Pushes**: You cannot push directly to `main`.
+
+We aim to review all PRs within 48 hours. Thank you for your patience!
 
 ## 🐛 Reporting Bugs
 
