@@ -43,6 +43,22 @@ npm install nural fastify
 
 ---
 
+## 🛠️ CLI
+
+Nural comes with a built-in CLI to help you scaffold projects and generate resources.
+
+```bash
+# Create a new project
+npx nural new my-api
+
+# Generate resources
+npx nural generate route users
+npx nural generate middleware auth
+npx nural generate service user
+```
+
+---
+
 ## Quick Start
 
 ```typescript
