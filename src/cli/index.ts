@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import inquirer from "inquirer";
+import select from "@inquirer/select";
 import chalk from "chalk";
 import fs from "fs-extra";
 import path from "path";
 
 const program = new Command();
 
-program.name("nural").description("Nural Framework CLI").version("0.3.4");
+program.name("nural").description("Nural Framework CLI").version("0.3.5");
 
 program
   .command("new <project-name>")
@@ -23,15 +23,22 @@ program
       process.exit(1);
     }
 
-    const { framework } = await inquirer.prompt([
-      {
-        type: "list",
-        name: "framework",
-        message: "Select a framework:",
-        choices: ["express", "fastify"],
-        default: "express",
-      },
-    ]);
+    const framework = await select({
+      message: "Select a framework:",
+      choices: [
+        {
+          name: "express",
+          value: "express",
+          description: "Fast, unopinionated, minimalist web framework",
+        },
+        {
+          name: "fastify",
+          value: "fastify",
+          description: "Fast and low overhead web framework",
+        },
+      ],
+      default: "express",
+    });
 
     console.log(
       chalk.blue(`\nInitializing new Nural project in ${projectName}...`),
@@ -54,7 +61,7 @@ program
         start: "node dist/index.js",
       },
       dependencies: {
-        nural: "^0.3.3",
+        nural: "^0.3.5",
         [framework]: framework === "express" ? "^5.0.0" : "^5.0.0", // Using explicit versions for peer deps
         zod: "^3.22.4",
       },
@@ -98,9 +105,7 @@ import { appConfig } from "./config/app.config";
 
 const app = new Nural(appConfig);
 
-app.start(3000).then(() => {
-  console.log("Server is running on http://localhost:3000");
-});
+app.start(3000)
 `;
     fs.writeFileSync(path.join(projectPath, "src/index.ts"), indexContent);
 
