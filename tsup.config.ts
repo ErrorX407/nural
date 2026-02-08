@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: ["src/index.ts", "src/cli/index.ts"],
   format: ["cjs", "esm"], // Output both CommonJS (.cjs) and ESM (.js)
   dts: true, // Generate type definitions
   splitting: false,
