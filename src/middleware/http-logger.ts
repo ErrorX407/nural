@@ -37,12 +37,14 @@ export const httpLogger = (options: HttpLoggerOptions = {}) => {
   return (req: any, res: any, next?: () => void) => {
     const start = Date.now();
 
+    // Handle both Express (res) and Fastify (res.raw)
+    const rawRes = res.raw || res;
+
     // Hook into the 'finish' event (Standard Node.js Stream Event)
-    // This works on both Express (res) and Fastify (reply.raw)
-    res.on("finish", () => {
+    rawRes.on("finish", () => {
       const { method, url, headers } = req;
       const duration = Date.now() - start;
-      const status = res.statusCode; // Express
+      const status = rawRes.statusCode;
       const userAgent = headers ? headers["user-agent"] || "-" : "-";
 
       const methodColor = methodColors[method] || resetColor;
