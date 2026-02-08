@@ -34,9 +34,11 @@ describe("Configuration Resolvers", () => {
         path: "/api-docs",
       });
 
-      expect(config.title).toBe("Custom API");
+      expect(config.openApi.info?.title).toBe("Custom API");
       expect(config.path).toBe("/api-docs");
-      expect(config.version).toBe(DEFAULT_DOCS_CONFIG.version);
+      expect(config.openApi.info?.version).toBe(
+        DEFAULT_DOCS_CONFIG.openApi.info?.version,
+      );
     });
   });
 
