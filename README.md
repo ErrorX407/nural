@@ -1,5 +1,3 @@
-# Nural
-
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark-mode.png">
@@ -7,6 +5,8 @@
     <img alt="Nural Logo" src="assets/logo-light-mode.png" width="300">
   </picture>
 </p>
+
+# Nural
 
 <p align="center">
   <strong>The intelligent, schema-first REST framework for Node.js</strong>
