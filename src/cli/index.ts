@@ -1,12 +1,12 @@
 import { Command } from "commander";
-import select from "@inquirer/select";
+import inquirer from "inquirer";
 import chalk from "chalk";
 import fs from "fs-extra";
 import path from "path";
 
 const program = new Command();
 
-program.name("nural").description("Nural Framework CLI").version("0.3.7");
+program.name("nural").description("Nural Framework CLI").version("0.3.8");
 
 program
   .command("new <project-name>")
@@ -21,22 +21,26 @@ program
       process.exit(1);
     }
 
-    const framework = await select({
-      message: "Select a framework:",
-      choices: [
-        {
-          name: "express",
-          value: "express",
-          description: "Fast, unopinionated, minimalist web framework",
-        },
-        {
-          name: "fastify",
-          value: "fastify",
-          description: "Fast and low overhead web framework",
-        },
-      ],
-      default: "express",
-    });
+    const { framework } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "framework",
+        message: "Select a framework (express/fastify):",
+        choices: [
+          {
+            name: "express",
+            value: "express",
+            description: "Fast, unopinionated, minimalist web framework",
+          },
+          {
+            name: "fastify",
+            value: "fastify",
+            description: "Fast and low overhead web framework",
+          },
+        ],
+        default: "express",
+      },
+    ]);
 
     console.log(
       chalk.blue(`\nInitializing new Nural project in ${projectName}...`),
@@ -59,7 +63,7 @@ program
         start: "node dist/index.js",
       },
       dependencies: {
-        nural: "^0.3.7",
+        nural: "^0.3.8",
         [framework]: framework === "express" ? "^5.0.0" : "^5.0.0", // Using explicit versions for peer deps
         zod: "^3.22.4",
       },
