@@ -8,7 +8,7 @@ import path from "path";
 
 const program = new Command();
 
-program.name("nural").description("Nural Framework CLI").version("0.3.2");
+program.name("nural").description("Nural Framework CLI").version("0.3.3");
 
 program
   .command("new <project-name>")

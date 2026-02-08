@@ -38,8 +38,34 @@ export class FastifyAdapter implements ServerAdapter {
     });
   }
 
-  use(middleware: FastifyPluginCallback): void {
-    this.app.register(middleware);
+  use(middleware: any): void {
+    // Check if middleware is a standard function (req, res, next)
+    if (typeof middleware === "function") {
+      this.app.addHook("onRequest", async (req, reply) => {
+        return new Promise<void>((resolve, reject) => {
+          const next = (err?: Error) => {
+            if (err) reject(err);
+            else resolve();
+          };
+
+          // Call the middleware with Fastify objects
+          // Note: Some Express middleware might expect 'res' to be http.ServerResponse
+          // We pass 'reply' which is the Fastify wrapper.
+          // Our internal httpLogger now handles 'reply.raw' so it's safe.
+          try {
+            const result = middleware(req, reply, next);
+            if (result && typeof result.then === "function") {
+              result.catch(reject);
+            }
+          } catch (err) {
+            reject(err);
+          }
+        });
+      });
+    } else {
+      // Fallback for Fastify plugins
+      this.app.register(middleware);
+    }
   }
 
   /**
