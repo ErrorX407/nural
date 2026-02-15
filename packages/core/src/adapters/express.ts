@@ -3,28 +3,30 @@
  * Implements ServerAdapter for Express framework
  */
 
-import express, { Express, Request, Response, RequestHandler } from "express";
-import { z } from "zod";
+import express, { Express, Request, RequestHandler, Response } from "express";
+import http from "http";
+import type { ErrorContext, ResolvedErrorHandlerConfig } from "../types/error";
+import { DEFAULT_ERROR_HANDLER_CONFIG } from "../types/error";
 import type { AnyRouteConfig } from "../types/route";
 import type { ServerAdapter, StaticRouteResponse } from "./base";
-import type { ResolvedErrorHandlerConfig, ErrorContext } from "../types/error";
-import { DEFAULT_ERROR_HANDLER_CONFIG } from "../types/error";
 
 /**
  * Express adapter implementation
  */
 export class ExpressAdapter implements ServerAdapter {
   public app: Express;
+  public server: http.Server;
   private errorConfig: ResolvedErrorHandlerConfig;
 
   constructor(errorConfig?: ResolvedErrorHandlerConfig) {
     this.app = express();
     this.app.use(express.json());
+    this.server = http.createServer(this.app);
     this.errorConfig = errorConfig ?? DEFAULT_ERROR_HANDLER_CONFIG;
   }
 
-  listen(port: number, cb?: () => void): void {
-    this.app.listen(port, cb);
+  listen(port: number, cb?: () => void): http.Server {
+    return this.server.listen(port, cb);
   }
 
   use(middleware: RequestHandler): void {

@@ -5,16 +5,15 @@
 
 import Fastify, {
   FastifyInstance,
-  FastifyRequest,
   FastifyReply,
+  FastifyRequest,
   HTTPMethods,
-  FastifyPluginCallback,
+  RawServerDefault,
 } from "fastify";
-import { z } from "zod";
+import type { ErrorContext, ResolvedErrorHandlerConfig } from "../types/error";
+import { DEFAULT_ERROR_HANDLER_CONFIG } from "../types/error";
 import type { AnyRouteConfig } from "../types/route";
 import type { ServerAdapter, StaticRouteResponse } from "./base";
-import type { ResolvedErrorHandlerConfig, ErrorContext } from "../types/error";
-import { DEFAULT_ERROR_HANDLER_CONFIG } from "../types/error";
 
 /**
  * Fastify adapter implementation
@@ -23,12 +22,16 @@ export class FastifyAdapter implements ServerAdapter {
   public app: FastifyInstance;
   private errorConfig: ResolvedErrorHandlerConfig;
 
+  get server() {
+    return this.app.server;
+  }
+
   constructor(errorConfig?: ResolvedErrorHandlerConfig) {
     this.app = Fastify();
     this.errorConfig = errorConfig ?? DEFAULT_ERROR_HANDLER_CONFIG;
   }
 
-  listen(port: number, cb?: () => void): void {
+  listen(port: number, cb?: () => void): RawServerDefault {
     this.app.listen({ port }, (err) => {
       if (err) {
         console.error(err);
@@ -36,6 +39,7 @@ export class FastifyAdapter implements ServerAdapter {
       }
       if (cb) cb();
     });
+    return this.app.server;
   }
 
   use(middleware: any): void {
