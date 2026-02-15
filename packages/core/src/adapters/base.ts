@@ -4,8 +4,13 @@
  */
 
 import type { Express, RequestHandler } from "express";
-import type { FastifyInstance, FastifyPluginCallback } from "fastify";
+import type {
+  FastifyInstance,
+  FastifyPluginCallback,
+  RawServerDefault,
+} from "fastify";
 import type { AnyRouteConfig } from "../types/route";
+import http from "http";
 
 /**
  * Response type for static routes (docs, spec)
@@ -23,8 +28,10 @@ export interface ServerAdapter {
   /** Underlying framework app instance */
   app: Express | FastifyInstance;
 
+  server: http.Server | RawServerDefault;
+
   /** Start listening on port */
-  listen(port: number, cb?: () => void): void;
+  listen(port: number, cb?: () => void): http.Server | RawServerDefault;
 
   /** Register a route with validation and response mapping */
   registerRoute(route: AnyRouteConfig): void;

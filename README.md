@@ -28,6 +28,7 @@
 - 🛡️ **Validation** – Zod-powered input/output validation
 - 🔄 **Response Mapping** – Auto-strip unlisted fields (no data leaks!)
 - 🔌 **Multi-Framework** – Works with Express & Fastify
+- 📡 **Real-time** – Built-in Socket.io support (via CLI)
 - 🎯 **Middleware Context** – Type-safe context injection
 - 🔒 **Built-in Security** – CORS & Helmet with zero dependencies
 
@@ -48,13 +49,23 @@ npm install nural fastify
 Nural comes with a built-in CLI to help you scaffold projects and generate resources.
 
 ```bash
-# Create a new project
-npx nural new my-api
+# Install nural cli
+npm install -g @nural/cli
+
+# Create a new project (interactive)
+nural new my-api
+
+# Select integrations during setup:
+# 🔌 WebSockets (Socket.io)
+# 🗄️ PostgreSQL (Prisma)
+# 🍃 MongoDB (Mongoose)
+# ⚡ Redis
+# 🐇 RabbitMQ
 
 # Generate resources
-npx nural generate route users
-npx nural generate middleware auth
-npx nural generate service user
+nural generate route users
+nural generate middleware auth
+nural generate service user
 ```
 
 ---

@@ -23,6 +23,7 @@
 import { Nural } from "../../../src";
 import { appConfig } from "./config";
 import { authRoutes, userRoutes, healthRoutes } from "./routes";
+import { Server } from "socket.io";
 
 // Create application
 const app = new Nural(appConfig);
@@ -32,7 +33,23 @@ app.register([...healthRoutes, ...authRoutes, ...userRoutes]);
 
 // Start server
 const PORT = Number(process.env.PORT) || 3000;
-app.start(PORT);
+const server = app.start(PORT);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow all origins for dev
+    methods: ["GET", "POST"],
+  },
+});
+
+// 4. Handle Sockets
+io.on("connection", (socket) => {
+  console.log(`⚡ Client connected: ${socket.id}`);
+
+  socket.on("disconnect", () => {
+    console.log(`❌ Client disconnected: ${socket.id}`);
+  });
+});
 
 // Custom logger usage
 import { Logger } from "../../../src";

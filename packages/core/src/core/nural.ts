@@ -3,24 +3,25 @@
  * Main application class that orchestrates adapters and documentation
  */
 
+import { Server } from "http";
 import type { ServerAdapter } from "../adapters/base";
 import { ExpressAdapter } from "../adapters/express";
 import { FastifyAdapter } from "../adapters/fastify";
-import type { AnyRouteConfig } from "../types/route";
+import { DocumentationGenerator } from "../docs/generator";
+import { applyCorsExpress, applyCorsFastify } from "../middleware/cors";
+import { applyHelmetExpress, applyHelmetFastify } from "../middleware/helmet";
+import { httpLogger } from "../middleware/http-logger";
 import type { NuralConfig, ResolvedDocsConfig } from "../types/config";
 import { resolveDocsConfig } from "../types/config";
+import type { ResolvedErrorHandlerConfig } from "../types/error";
+import { resolveErrorHandlerConfig } from "../types/error";
 import type {
   ResolvedCorsConfig,
   ResolvedHelmetConfig,
 } from "../types/middleware";
 import { resolveCorsConfig, resolveHelmetConfig } from "../types/middleware";
-import type { ResolvedErrorHandlerConfig } from "../types/error";
-import { resolveErrorHandlerConfig } from "../types/error";
-import { DocumentationGenerator } from "../docs/generator";
-import { applyCorsExpress, applyCorsFastify } from "../middleware/cors";
-import { applyHelmetExpress, applyHelmetFastify } from "../middleware/helmet";
+import type { AnyRouteConfig } from "../types/route";
 import { Logger } from "./logger";
-import { httpLogger } from "../middleware/http-logger";
 
 /**
  * Nural - The intelligent, schema-first REST framework
@@ -80,6 +81,10 @@ export class Nural {
     this.applyBuiltInMiddleware();
   }
 
+  get server() {
+    return this.adapter.server;
+  }
+
   /**
    * Apply CORS and Helmet middleware based on config
    */
@@ -121,12 +126,12 @@ export class Nural {
   /**
    * Start the server
    */
-  start(port: number): void {
+  start(port: number): Server {
     if (this.docsConfig.enabled) {
       this.setupDocs();
     }
 
-    this.adapter.listen(port, () => {
+    return this.adapter.listen(port, () => {
       console.log(`🚀 Nural Server running on port ${port}`);
       if (this.docsConfig.enabled) {
         console.log(
