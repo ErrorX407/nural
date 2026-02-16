@@ -13,7 +13,7 @@ extendZodWithOpenApi(z);
 
 // Core exports
 export { Nural } from "./core";
-export { createRoute, defineMiddleware } from "./core";
+export { createRoute, createModule, defineMiddleware, createBuilder } from "./core";
 export { Logger } from "./core/logger";
 export type { LoggerConfig } from "./core/logger";
 export * from "./core/exceptions";

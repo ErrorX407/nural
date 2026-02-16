@@ -12,5 +12,9 @@
   "devDependencies": {
     "@changesets/cli": "^2.27.1",
     "turbo": "^1.11.3"
+  },
+  "dependencies": {
+    "cli": "link:../../../AppData/Local/pnpm/global/5/node_modules/@nural/cli",
+    "nural": "link:../../../AppData/Local/pnpm/global/5/node_modules/nural"
   }
 }
