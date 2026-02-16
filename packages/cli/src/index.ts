@@ -6,7 +6,7 @@ const program = new Command();
 program
   .name("nural")
   .description("Nural CLI - The intelligent framework tool")
-  .version("0.3.8");
+  .version("0.3.10");
 
 program
   .command("new <project-name>")

@@ -22,6 +22,7 @@ import type {
 import { resolveCorsConfig, resolveHelmetConfig } from "../types/middleware";
 import type { AnyRouteConfig } from "../types/route";
 import { Logger } from "./logger";
+import { ModuleConfig } from "./module";
 
 /**
  * Nural - The intelligent, schema-first REST framework
@@ -124,6 +125,37 @@ export class Nural {
   }
 
   /**
+   * Register a module containing multiple routes with shared configuration
+   * @param module The module configuration to register
+   */
+  registerModule(module: ModuleConfig): void {
+    const { prefix = "", middleware = [], tags = [], security = [], routes } = module;
+
+    routes.forEach((route) => {
+      const hydratedRoute = {
+        ...route,
+        path: this.joinPaths(prefix, route.path),
+        middleware: [...middleware, ...(route.middleware || [])],
+        tags: [...tags, ...(route.tags || [])],
+        security: route.security ? route.security : security,
+      };
+
+      this.registerSingleRoute(hydratedRoute);
+    });
+  }
+
+  /**
+   * Register a single route with the adapter and documentation generator
+   * @param route The route configuration to register
+   */
+  private registerSingleRoute(route: AnyRouteConfig): void {
+    this.adapter.registerRoute(route);
+    if (this.docsConfig.enabled) {
+      this.docsGenerator.addRoute(route);
+    }
+  }
+
+  /**
    * Start the server
    */
   start(port: number): Server {
@@ -145,6 +177,12 @@ export class Nural {
         console.log(`🛡️  Helmet security headers enabled`);
       }
     });
+  }
+
+  private joinPaths(prefix: string, path: string): string {
+    const cleanPrefix = prefix.replace(/\/+$/, ""); // Remove trailing slash
+    const cleanPath = path.replace(/^\/+/, ""); // Remove leading slash
+    return `${cleanPrefix}/${cleanPath}` || "/";
   }
 
   /**
