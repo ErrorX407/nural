@@ -57,15 +57,15 @@ export async function scaffold(name: string, options: any) {
         start: "node dist/main.js",
       },
       dependencies: {
-        nural: "^0.3.8",
-        zod: "^3.22.4",
-        dotenv: "^16.4.5",
+        nural: "^0.3.10",
+        zod: "^4.3.6",
+        dotenv: "^17.3.1",
       },
       devDependencies: {
         tsx: "^4.7.1",
         tsup: "^8.0.2",
         typescript: "^5.3.3",
-        "@types/node": "^20.11.24",
+        "@types/node": "^25.2.3",
       },
     };
 
@@ -96,7 +96,7 @@ export async function scaffold(name: string, options: any) {
       pkgJson.scripts["db:migrate"] = "prisma migrate dev";
     }
     if (data.integrations.includes("mongoose")) {
-      pkgJson.dependencies.mongoose = "^8.2.0";
+      pkgJson.dependencies.mongoose = "^9.2.1";
     }
 
     await fs.writeJson(path.join(projectPath, "package.json"), pkgJson, {

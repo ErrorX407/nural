@@ -1,5 +1,6 @@
 import { Nural } from "nural";
 import { env } from "./config/env";
+<% if (integrations.includes('ws')) import http from "http";
 <% if (integrations.includes('ws')) { %>import { Server } from "socket.io";<% } %>
 
 export const app = new Nural({
@@ -17,7 +18,7 @@ export const app = new Nural({
 // app.register(authRoutes);
 
 <% if (integrations.includes('ws')) { %>
-export function attachSockets(server: any) {
+export function attachSockets(server: http.Server) {
   const io = new Server(server, {
     cors: {
       origin: "*",
