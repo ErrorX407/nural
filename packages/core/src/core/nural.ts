@@ -50,6 +50,8 @@ export class Nural {
   private isExpress: boolean;
   public logger: Logger;
 
+  private routeRegistry: AnyRouteConfig[] = [];
+
   constructor(config: NuralConfig = {}) {
     this.docsConfig = resolveDocsConfig(config.docs);
     this.corsConfig = resolveCorsConfig(config.cors);
@@ -129,13 +131,13 @@ export class Nural {
    * @param module The module configuration to register
    */
   registerModule(module: ModuleConfig): void {
-    const { 
-      prefix = "", 
-      middleware = [], 
-      tags = [], 
-      security = [], 
+    const {
+      prefix = "",
+      middleware = [],
+      tags = [],
+      security = [],
       providers: moduleProviders = {},
-      routes 
+      routes
     } = module;
 
     // Safety Check: Don't let users overwrite core properties
@@ -152,11 +154,11 @@ export class Nural {
 
       const wrappedHandler = async (ctx: any) => {
         const flattenedContext = {
-            ...ctx,
-            // 1. Route Defaults (inject)
-            // 2. Module Overrides (providers) -> Overrides Route defaults (Good for Mocking!)
-            ...routeProviders, 
-            ...moduleProviders
+          ...ctx,
+          // 1. Route Defaults (inject)
+          // 2. Module Overrides (providers) -> Overrides Route defaults (Good for Mocking!)
+          ...routeProviders,
+          ...moduleProviders
         };
         return originalHandler(flattenedContext);
       };
@@ -179,6 +181,8 @@ export class Nural {
    * @param route The route configuration to register
    */
   private registerSingleRoute(route: AnyRouteConfig): void {
+    this.routeRegistry.push(route);
+
     this.adapter.registerRoute(route);
     if (this.docsConfig.enabled) {
       this.docsGenerator.addRoute(route);
@@ -207,6 +211,24 @@ export class Nural {
         console.log(`🛡️  Helmet security headers enabled`);
       }
     });
+  }
+
+  /**
+   * Public accessor for the CLI
+   */
+  public getRoutes(): AnyRouteConfig[] {
+    return this.routeRegistry;
+  }
+
+  /**
+   * Programmatic access to OpenAPI Spec
+   * This allows the CLI to generate docs without starting the server.
+   */
+  public getOpenApiSpec(): Record<string, any> {
+    if (!this.docsConfig.enabled) {
+      throw new Error("Documentation is disabled in Nural configuration.");
+    }
+    return this.docsGenerator.generateSpec();
   }
 
   private joinPaths(prefix: string, path: string): string {
