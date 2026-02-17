@@ -57,8 +57,7 @@ export async function scaffold(name: string, options: any) {
         start: "node dist/main.js",
       },
       dependencies: {
-        nural: "^0.3.10",
-        zod: "^4.3.6",
+        nural: "^0.4.0",
         dotenv: "^17.3.1",
       },
       devDependencies: {
@@ -66,6 +65,8 @@ export async function scaffold(name: string, options: any) {
         tsup: "^8.0.2",
         typescript: "^5.3.3",
         "@types/node": "^25.2.3",
+        vitest: "^1.3.1",
+        "@nural/testing": "^0.0.1",
       },
     };
 
@@ -121,27 +122,49 @@ export async function scaffold(name: string, options: any) {
       "src/common/middleware",
       "src/common/utils",
       "src/config",
-      "src/modules",
+      "src/modules/auth/models",
+      "src/modules/auth/schemas",
+      "src/modules/users",
       "src/providers",
+      "test/e2e" // Proper E2E test folder
     ];
     for (const dir of dirs) {
       await fs.ensureDir(path.join(projectPath, dir));
     }
 
-    // src/config/env.ts
-    const envTs = await ejs.renderFile(
-      templatePath("src/config/env.ts.ejs"),
-      data,
-    );
-    await fs.outputFile(path.join(projectPath, "src/config/env.ts"), envTs);
+    const templates = [
+      // Config & Main
+      { src: "src/config/env.ts.ejs", dest: "src/config/env.ts" },
+      { src: "src/app.ts.ejs", dest: "src/app.ts" },
+      { src: "src/main.ts.ejs", dest: "src/main.ts" },
 
-    // src/app.ts
-    const appTs = await ejs.renderFile(templatePath("src/app.ts.ejs"), data);
-    await fs.outputFile(path.join(projectPath, "src/app.ts"), appTs);
+      // Auth Module - Models
+      { src: "src/modules/auth/models/user.model.ts.ejs", dest: "src/modules/auth/models/user.model.ts" },
+      // { src: "src/modules/auth/models/token.model.ts.ejs", dest: "src/modules/auth/models/token.model.ts" },
 
-    // src/main.ts
-    const mainTs = await ejs.renderFile(templatePath("src/main.ts.ejs"), data);
-    await fs.outputFile(path.join(projectPath, "src/main.ts"), mainTs);
+      // Auth Module - Schemas (Request/Response Split)
+      { src: "src/modules/auth/schemas/auth.request.ts.ejs", dest: "src/modules/auth/schemas/auth.request.ts" },
+      { src: "src/modules/auth/schemas/auth.response.ts.ejs", dest: "src/modules/auth/schemas/auth.response.ts" },
+
+      // Auth Module - Core
+      { src: "src/modules/auth/auth.service.ts.ejs", dest: "src/modules/auth/auth.service.ts" },
+      { src: "src/modules/auth/auth.controller.ts.ejs", dest: "src/modules/auth/auth.controller.ts" },
+      { src: "src/modules/auth/auth.module.ts.ejs", dest: "src/modules/auth/auth.module.ts" },
+
+      // Docker
+      { src: "docker-compose.yml.ejs", dest: "docker-compose.yml" },
+
+      // Tests
+      { src: "test/auth.e2e.ts.ejs", dest: "test/e2e/auth.e2e.ts" },
+
+      // Build Config
+      { src: "tsup.config.ts.ejs", dest: "tsup.config.ts" },
+    ];
+
+    for (const file of templates) {
+      const content = await ejs.renderFile(templatePath(file.src), data);
+      await fs.outputFile(path.join(projectPath, file.dest), content);
+    }
 
     // Handle Integrations (Providers)
     if (data.integrations.includes("redis")) {

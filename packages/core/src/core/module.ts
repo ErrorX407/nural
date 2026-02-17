@@ -1,7 +1,9 @@
 import { AnyRouteConfig } from "../types";
 import type { MiddlewareHandler } from "./middleware";
 
-export interface ModuleConfig {
+export type ProviderMap = Record<string, unknown>;
+
+export interface ModuleConfig<Providers extends ProviderMap = ProviderMap> {
     /** * Prefix for all routes in this module (e.g. "/users") 
      */
     prefix?: string;
@@ -14,6 +16,12 @@ export interface ModuleConfig {
      * This groups endpoints in the Scalar/Swagger UI.
      */
     tags?: string[];
+
+    /**
+     * Providers for this module
+     * These will be injected into all route handlers
+     */
+    providers?: Providers;
 
     /**
      * Security requirements for ALL routes in this module
@@ -29,6 +37,8 @@ export interface ModuleConfig {
 /**
  * Create a modular group of routes with shared prefix/middleware/docs
  */
-export function createModule(config: ModuleConfig): ModuleConfig {
-    return config;
+export function createModule<Providers extends ProviderMap>(
+  config: ModuleConfig<Providers>
+): ModuleConfig<Providers> {
+  return config;
 }

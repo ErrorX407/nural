@@ -33,7 +33,8 @@ export function createRoute<
   B extends ZodAny = undefined,
   R extends ZodAny = undefined,
   M extends MiddlewareHandler<any, any>[] | undefined = undefined,
->(config: RouteConfig<P, Q, B, R, M>): RouteConfig<P, Q, B, R, M> {
+  InjectedServices extends Record<string, unknown> = {}
+>(config: RouteConfig<P, Q, B, R, M, InjectedServices> & { inject?: InjectedServices }): RouteConfig<P, Q, B, R, M, InjectedServices> {
   return config;
 }
 
@@ -49,47 +50,47 @@ export interface RouteBuilder<
     Q extends ZodAny = undefined,
     B extends ZodAny = undefined,
     R extends ZodAny = undefined,
-    M extends MiddlewareHandler<any, any>[] | undefined = undefined
+    M extends MiddlewareHandler<any, any>[] | undefined = undefined,
+    InjectedServices extends Record<string, unknown> = {}
   >(
     // 🪄 The Magic Fix:
     // We ask for a RouteConfig typed with the *COMBINED* middleware (Base + Local).
-    // This ensures the 'handler' expects the full context (e.g. ctx.user exists).
-    // But we Omit 'middleware' because the user only passes the *Local* middleware array here.
-    config: Omit<RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>>, "middleware"> & {
+    config: Omit<RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>, InjectedServices>, "middleware"> & {
       middleware?: M; // User only provides local middleware
     }
-  ): RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>>;
+  ): RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>, InjectedServices>;
 }
 
 /**
  * The Builder Factory
  */
 export function createBuilder<
-  BaseM extends MiddlewareHandler<any, any>[]
+  BaseM extends MiddlewareHandler<any, any>[],
 >(baseMiddleware: BaseM): RouteBuilder<BaseM> {
-  return <
+
+  const builder = <
     P extends ZodAny = undefined,
     Q extends ZodAny = undefined,
     B extends ZodAny = undefined,
     R extends ZodAny = undefined,
-    M extends MiddlewareHandler<any, any>[] | undefined = undefined
+    M extends MiddlewareHandler<any, any>[] | undefined = undefined,
+    InjectedServices extends Record<string, unknown> = {}
   >(
-    config: Omit<RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>>, "middleware"> & {
+    config: Omit<RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>, InjectedServices>, "middleware"> & {
       middleware?: M;
     }
-  ): RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>> => {
+  ): RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>, InjectedServices> => {
 
     // 1. Merge the middleware arrays at runtime
     const localMiddleware = (config.middleware || []) as MiddlewareHandler<any, any>[];
     const combinedMiddleware = [...baseMiddleware, ...localMiddleware];
 
     // 2. Return the full config object
-    // We use 'as unknown as TargetType' to safely cast the result.
-    // This is necessary because TypeScript cannot auto-infer that a runtime array spread 
-    // matches a specific generic Tuple type signature without a cast.
     return {
       ...config,
       middleware: combinedMiddleware,
-    } as unknown as RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>>;
+    } as unknown as RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>, InjectedServices>;
   };
+
+  return builder as RouteBuilder<BaseM>;
 }

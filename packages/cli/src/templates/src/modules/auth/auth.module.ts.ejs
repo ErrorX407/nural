@@ -1,0 +1,8 @@
+import { createModule } from "nural";
+import { loginRoute, registerRoute } from "./auth.controller";
+
+export const authModule = createModule({
+  prefix: "/auth",
+  tags: ["Auth"],
+  routes: [loginRoute, registerRoute],
+});

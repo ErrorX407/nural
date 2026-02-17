@@ -1,0 +1,36 @@
+import { <%= className %> } from "./models/<%= fileName %>.model";
+
+// 💡 Replace with your database (Prisma/Mongoose)
+const db = new Map<string, <%= className %>>();
+
+export const findAll = async () => {
+  return Array.from(db.values());
+};
+
+export const findOne = async (id: string) => {
+  return db.get(id) || null;
+};
+
+export const create = async (data: any) => {
+  const id = Math.random().toString(36).substring(7);
+  const newItem: <%= className %> = {
+    id,
+    ...data,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+  db.set(id, newItem);
+  return newItem;
+};
+
+export const update = async (id: string, data: any) => {
+  const existing = db.get(id);
+  if (!existing) return null;
+  const updated = { ...existing, ...data, updatedAt: new Date() };
+  db.set(id, updated);
+  return updated;
+};
+
+export const remove = async (id: string) => {
+  return db.delete(id);
+};

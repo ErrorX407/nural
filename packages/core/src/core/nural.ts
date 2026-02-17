@@ -22,7 +22,7 @@ import type {
 import { resolveCorsConfig, resolveHelmetConfig } from "../types/middleware";
 import type { AnyRouteConfig } from "../types/route";
 import { Logger } from "./logger";
-import { ModuleConfig } from "./module";
+import { ModuleConfig, ProviderMap } from "./module";
 
 /**
  * Nural - The intelligent, schema-first REST framework
@@ -129,15 +129,45 @@ export class Nural {
    * @param module The module configuration to register
    */
   registerModule(module: ModuleConfig): void {
-    const { prefix = "", middleware = [], tags = [], security = [], routes } = module;
+    const { 
+      prefix = "", 
+      middleware = [], 
+      tags = [], 
+      security = [], 
+      providers: moduleProviders = {},
+      routes 
+    } = module;
+
+    // Safety Check: Don't let users overwrite core properties
+    const reservedKeys = ['req', 'res', 'body', 'query', 'params', 'next'];
+    Object.keys(moduleProviders).forEach(key => {
+      if (reservedKeys.includes(key)) {
+        throw new Error(`Dependency Injection Error: Provider name "${key}" is reserved. Rename it.`);
+      }
+    });
 
     routes.forEach((route) => {
+      const originalHandler = route.handler;
+      const routeProviders = route.inject || {};
+
+      const wrappedHandler = async (ctx: any) => {
+        const flattenedContext = {
+            ...ctx,
+            // 1. Route Defaults (inject)
+            // 2. Module Overrides (providers) -> Overrides Route defaults (Good for Mocking!)
+            ...routeProviders, 
+            ...moduleProviders
+        };
+        return originalHandler(flattenedContext);
+      };
+
       const hydratedRoute = {
         ...route,
         path: this.joinPaths(prefix, route.path),
         middleware: [...middleware, ...(route.middleware || [])],
         tags: [...tags, ...(route.tags || [])],
         security: route.security ? route.security : security,
+        handler: wrappedHandler
       };
 
       this.registerSingleRoute(hydratedRoute);
