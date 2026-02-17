@@ -1,0 +1,15 @@
+import { Schema } from "nural";
+
+/**
+ * Request Schemas
+ * Defines the contract for incoming data.
+ */
+
+export const LoginDTO = Schema.object({
+  email: Schema.string().email().describe("User email address"),
+  password: Schema.string().min(6).describe("User password"),
+});
+
+export const RegisterDTO = LoginDTO.extend({
+  name: Schema.string().min(2).optional(),
+});

@@ -6,5 +6,5 @@
 export { Nural } from "./nural";
 export { createRoute, createBuilder } from "./route";
 export { defineMiddleware, type MiddlewareHandler } from "./middleware";
-export { createModule, type ModuleConfig } from "./module";
+export { createModule, type ModuleConfig, type ProviderMap } from "./module";
 export * from "./exceptions";

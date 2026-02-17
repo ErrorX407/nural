@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT}:${PORT}"
+    env_file:
+      - .env
+    depends_on:
+      <% if (integrations.includes('redis')) { %>- redis<% } %>
+      <% if (integrations.includes('prisma-pg')) { %>- postgres<% } %>
+      <% if (integrations.includes('mongoose')) { %>- mongo<% } %>
+
+  <% if (integrations.includes('redis')) { %>
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+  <% } %>
+
+  <% if (integrations.includes('prisma-pg')) { %>
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+  <% } %>
+
+  <% if (integrations.includes('mongoose')) { %>
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+  <% } %>

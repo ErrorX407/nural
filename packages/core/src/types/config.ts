@@ -43,11 +43,29 @@ export interface ScalarConfig {
   searchHotKey?: string;
   metaData?: Record<string, any>;
   hiddenClients?: string[] | boolean | Record<string, any>;
+  
   // Auth
   authentication?: {
     preferredSecurityScheme?: string | string[];
     securitySchemes?: Record<string, any>;
+    
+    // Allow HTTP auth defaults (Bearer, Basic)
+    http?: {
+      bearer?: { token?: string };
+      basic?: { username?: string; password?: string };
+      [key: string]: any;
+    };
+    
+    // Allow ApiKey defaults
+    apiKey?: {
+      token?: string;
+      [key: string]: any;
+    };
+
+    // Allow other auth types (OAuth2, etc.)
+    [key: string]: any; 
   };
+
   // Advanced
   defaultHttpClient?: { targetKey: string; clientKey: string };
   withDefaultFonts?: boolean;

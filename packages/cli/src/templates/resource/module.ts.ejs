@@ -1,0 +1,20 @@
+import { createModule } from "nural";
+import { 
+  get<%= className %>s, 
+  create<%= className %>, 
+  get<%= className %>, 
+  update<%= className %>, 
+  delete<%= className %> 
+} from "./<%= fileName %>.controller";
+
+export const <%= camelName %>Module = createModule({
+  prefix: "/<%= fileName %>s",
+  tags: ["<%= className %>"],
+  routes: [
+    get<%= className %>s, 
+    create<%= className %>, 
+    get<%= className %>, 
+    update<%= className %>, 
+    delete<%= className %>
+  ],
+});
