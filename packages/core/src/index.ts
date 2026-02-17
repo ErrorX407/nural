@@ -36,5 +36,5 @@ export type {
 } from "./types";
 
 // Re-export Zod for convenience
-export { z } from "zod";
+export { z as Schema } from "zod";
 export { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";

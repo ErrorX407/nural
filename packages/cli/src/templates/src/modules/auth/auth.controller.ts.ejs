@@ -1,0 +1,39 @@
+import { createRoute, z } from "nural";
+import * as AuthService from "./auth.service";
+import { LoginDTO, RegisterDTO } from "./schemas/auth.request";
+import { AuthResponse } from "./schemas/auth.response";
+
+const services = { authService: AuthService };
+
+export const loginRoute = createRoute({
+  method: "POST",
+  path: "/login",
+  summary: "User Login",
+  inject: services,
+  request: {
+    body: LoginDTO,
+  },
+  responses: {
+    200: AuthResponse,
+    401: z.object({ message: z.string() }),
+  },
+  handler: async ({ body, authService }) => {
+    return authService.login(body.email, body.password);
+  },
+});
+
+export const registerRoute = createRoute({
+  method: "POST",
+  path: "/register",
+  summary: "User Registration",
+  inject: services,
+  request: {
+    body: RegisterDTO,
+  },
+  responses: {
+    201: AuthResponse,
+  },
+  handler: async ({ body, authService }) => {
+    return authService.register(body);
+  },
+});
