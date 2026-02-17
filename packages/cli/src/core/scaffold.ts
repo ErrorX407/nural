@@ -52,9 +52,16 @@ export async function scaffold(name: string, options: any) {
       version: "0.0.1",
       description: "Nural Project",
       scripts: {
-        dev: "tsx watch src/main.ts",
-        build: "tsup",
-        start: "node dist/main.js",
+        "dev": "nural dev --watch",
+        "build": "nural build",
+        "start": "nural start",
+        "start:prod": "nural start",
+        "start:debug": "nural start --debug",
+        "docs:gen": "nural docs",
+        "test": "nural test",
+        "test:watch": "nural test --watch",
+        "test:cov": "nural test --coverage",
+        "test:e2e": "nural test --e2e"
       },
       dependencies: {
         nural: "^0.4.0",
