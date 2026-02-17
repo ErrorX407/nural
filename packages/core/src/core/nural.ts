@@ -213,6 +213,12 @@ export class Nural {
     });
   }
 
+  private joinPaths(prefix: string, path: string): string {
+    const cleanPrefix = prefix.replace(/\/+$/, ""); // Remove trailing slash
+    const cleanPath = path.replace(/^\/+/, ""); // Remove leading slash
+    return `${cleanPrefix}/${cleanPath}` || "/";
+  }
+
   /**
    * Public accessor for the CLI
    */
