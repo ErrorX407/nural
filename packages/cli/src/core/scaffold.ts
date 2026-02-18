@@ -64,7 +64,7 @@ export async function scaffold(name: string, options: any) {
         "test:e2e": "nural test --e2e"
       },
       dependencies: {
-        nural: "^0.4.0",
+        nural: "^0.5.0",
         dotenv: "^17.3.1",
       },
       devDependencies: {

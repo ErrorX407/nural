@@ -1,80 +1,206 @@
-import fs from "fs-extra";
-import path from "path";
 import chalk from "chalk";
 import ejs from "ejs";
+import fs from "fs-extra";
+import inquirer from "inquirer";
+import path from "path";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Helper to find Resource templates specifically
-const resourceTemplatePath = (name: string) => {
-  // 1. Check dist/templates/resource (production build)
-  // __dirname points to 'dist' when running the built CLI
-  const distPath = path.join(__dirname, "templates/resource", name);
+// Helper to find templates (Resource vs Granular)
+const templatePath = (type: string, name: string) => {
+  const folder = type === "resource" ? "resource" : "granular";
+  
+  // 1. Production path (dist/templates)
+  const distPath = path.join(__dirname, "templates", folder, name);
   if (fs.existsSync(distPath)) return distPath;
   
-  // 2. Check src/templates/resource (local dev / raw ts-node)
-  // If __dirname is 'src/commands' (dev), go up to src/templates
-  // If __dirname is 'dist' (prod locally linked), go up to src via ../src
-  const localSrcPath = path.join(__dirname, "../src/templates/resource", name);
+  // 2. Dev path (src/templates)
+  const localSrcPath = path.join(__dirname, "../src/templates", folder, name);
   if (fs.existsSync(localSrcPath)) return localSrcPath;
 
-  return distPath; // Return dist path by default for error message clarity
+  return distPath; // Default to prod path for error messages
 };
 
-// String utilities
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const camelCase = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
-export async function generateCommand(name: string) {
+export async function generateCommand(schematic: string, name: string) {
   const cwd = process.cwd();
-  
-  // 1. Normalize Names
-  // Input: "Products" -> fileName: "products", className: "Products", camelName: "products"
-  const fileName = name.toLowerCase(); 
-  const className = capitalize(fileName); 
-  const camelName = camelCase(fileName);
 
-  const targetDir = path.join(cwd, "src/modules", fileName);
-
-  // 2. Safety Check
-  if (fs.existsSync(targetDir)) {
-    console.error(chalk.red(`❌ Module '${fileName}' already exists.`));
-    process.exit(1);
+  // 1. Handle "Schematic" selection if missing
+  // User ran 'nural g product' (missing type) -> assume resource? 
+  // OR User ran 'nural g' -> ask what they want.
+  if (!name) {
+    // If only one arg provided (nural g product), assume it's a resource name
+    if (schematic && !["middleware", "guard", "interceptor", "filter", "provider", "service", "resource"].includes(schematic)) {
+        name = schematic;
+        schematic = "resource";
+    } else {
+        // Interactive prompt
+        if (!schematic) {
+            const answer = await inquirer.prompt([{
+                type: 'list',
+                name: 'type',
+                message: 'What do you want to generate?',
+                choices: ['resource', 'middleware', 'guard', 'interceptor', 'filter', 'provider']
+            }]);
+            schematic = answer.type;
+        }
+        if (!name) {
+             const answer = await inquirer.prompt([{
+                type: 'input',
+                name: 'name',
+                message: 'What is the name?'
+            }]);
+            name = answer.name;
+        }
+    }
   }
 
-  console.log(chalk.blue(`✨ Generating resource: ${chalk.bold(className)}`));
-
-  // 3. Create Enterprise Directory Structure
-  await fs.ensureDir(path.join(targetDir, "models"));
-  await fs.ensureDir(path.join(targetDir, "schemas"));
-
+  const fileName = name.toLowerCase();
+  const className = capitalize(fileName);
+  const camelName = camelCase(fileName);
   const data = { name: className, className, fileName, camelName };
 
-  // 4. Generate Files (Mapping Template -> Destination)
-  const files = [
-    { tpl: "model.ts.ejs", out: `models/${fileName}.model.ts` },
-    { tpl: "schema.request.ts.ejs", out: `schemas/${fileName}.request.ts` },
-    { tpl: "schema.response.ts.ejs", out: `schemas/${fileName}.response.ts` },
-    { tpl: "service.ts.ejs", out: `${fileName}.service.ts` },
-    { tpl: "controller.ts.ejs", out: `${fileName}.controller.ts` },
-    { tpl: "module.ts.ejs", out: `${fileName}.module.ts` },
-  ];
+  console.log(chalk.blue(`✨ Generating ${schematic}: ${chalk.bold(className)}`));
 
-  for (const file of files) {
-    const template = resourceTemplatePath(file.tpl);
-    if (!fs.existsSync(template)) {
-        console.error(chalk.red(`Template not found: ${file.tpl}`));
-        continue;
+  try {
+    // 2. Resource Generation (The Full Module - Existing Logic)
+    if (schematic === "resource") {
+      const targetDir = path.join(cwd, "src/modules", fileName);
+      if (fs.existsSync(targetDir)) {
+        console.error(chalk.red(`❌ Module '${fileName}' already exists.`));
+        return;
+      }
+
+      await fs.ensureDir(path.join(targetDir, "models"));
+      await fs.ensureDir(path.join(targetDir, "schemas"));
+
+      const files = [
+        { tpl: "model.ts.ejs", out: `models/${fileName}.model.ts` },
+        { tpl: "schema.request.ts.ejs", out: `schemas/${fileName}.request.ts` },
+        { tpl: "schema.response.ts.ejs", out: `schemas/${fileName}.response.ts` },
+        { tpl: "service.ts.ejs", out: `${fileName}.service.ts` },
+        { tpl: "controller.ts.ejs", out: `${fileName}.controller.ts` },
+        { tpl: "module.ts.ejs", out: `${fileName}.module.ts` },
+      ];
+
+      for (const file of files) {
+        const content = await ejs.renderFile(templatePath("resource", file.tpl), data);
+        await fs.outputFile(path.join(targetDir, file.out), content);
+      }
+      
+      // Auto-register (Keep your existing function)
+      await registerModuleInApp(cwd, fileName, camelName);
+      return;
     }
-    const content = await ejs.renderFile(template, data);
-    await fs.outputFile(path.join(targetDir, file.out), content);
-    console.log(chalk.green(`  ✔ Created src/modules/${fileName}/${file.out}`));
+
+    // 3. Granular Generation
+    let destPath = "";
+    let tplName = "";
+
+    if (schematic === "middleware") {
+        destPath = path.join(cwd, "src/common/middleware", `${fileName}.middleware.ts`);
+        tplName = "middleware.ts.ejs";
+    } 
+    else if (schematic === "guard") {
+        destPath = path.join(cwd, "src/common/guards", `${fileName}.guard.ts`);
+        tplName = "guard.ts.ejs";
+        await fs.ensureDir(path.join(cwd, "src/common/guards"));
+    }
+    else if (schematic === "interceptor") {
+        destPath = path.join(cwd, "src/common/interceptors", `${fileName}.interceptor.ts`);
+        tplName = "interceptor.ts.ejs";
+        await fs.ensureDir(path.join(cwd, "src/common/interceptors"));
+    }
+    else if (schematic === "filter") {
+        destPath = path.join(cwd, "src/common/filters", `${fileName}.filter.ts`);
+        tplName = "filter.ts.ejs";
+        await fs.ensureDir(path.join(cwd, "src/common/filters"));
+    }
+    else if (schematic === "provider") {
+        destPath = path.join(cwd, "src/providers", `${fileName}.provider.ts`);
+        tplName = "provider.ts.ejs";
+    }
+
+    if (fs.existsSync(destPath)) {
+        console.error(chalk.red(`❌ File already exists at ${destPath}`));
+        return;
+    }
+
+    const content = await ejs.renderFile(templatePath("granular", tplName), data);
+    await fs.outputFile(destPath, content);
+    console.log(chalk.green(`  ✔ Created ${path.relative(cwd, destPath)}`));
+
+    if (schematic === "provider") {
+        await registerProviderInMain(cwd, fileName, camelName);
+    }
+
+  } catch (error) {
+    console.error(chalk.red("Generation failed."));
+    console.error(error);
+  }
+}
+
+/**
+ * Automatically injects provider registration into src/main.ts
+ */
+async function registerProviderInMain(cwd: string, fileName: string, camelName: string) {
+  const mainPath = path.join(cwd, "src/main.ts");
+  
+  if (!fs.existsSync(mainPath)) {
+    console.warn(chalk.yellow("⚠ Could not find src/main.ts. Please register the provider manually."));
+    return;
   }
 
-  // 5. Auto-Register in app.ts
-  await registerModuleInApp(cwd, fileName, camelName);
+  let content = await fs.readFile(mainPath, "utf-8");
+  const providerName = `${camelName}Provider`;
+  const importPath = `./providers/${fileName}.provider`;
+  
+  // Check if already registered
+  if (content.includes(providerName)) {
+    return;
+  }
+
+  console.log(chalk.blue(`  ⚙ Wiring up ${providerName} in main.ts...`));
+
+  // A. Add Import Statement
+  const lastImportIdx = content.lastIndexOf("import ");
+  const nextLineIdx = content.indexOf("\n", lastImportIdx);
+  const importStatement = `import { ${providerName} } from "${importPath}";`;
+
+  if (lastImportIdx !== -1) {
+    content = 
+      content.slice(0, nextLineIdx + 1) + 
+      importStatement + "\n" + 
+      content.slice(nextLineIdx + 1);
+  } else {
+    content = importStatement + "\n" + content;
+  }
+
+  // B. Register Provider inside bootstrap() or main()
+  // Look for 'app.start' or 'bootstrap'
+  const registerLine = `  await app.registerProvider(${providerName});`;
+  
+  // Try to find insertion point: Before 'app.start'
+  const startRegex = /app\.start\(/;
+  const match = startRegex.exec(content);
+
+  if (match) {
+    const insertPos = match.index;
+    content = 
+      content.slice(0, insertPos) + 
+      registerLine + "\n\n  " + // Add formatting
+      content.slice(insertPos);
+  } else {
+    console.warn(chalk.yellow("⚠ Could not find 'app.start()' in main.ts. Added provider registration at the end."));
+    content += `\n// TODO: Register this provider inside your async startup function\n// app.registerProvider(${providerName});\n`;
+  }
+
+  await fs.writeFile(mainPath, content);
+  console.log(chalk.green(`  ✔ Registered ${providerName} successfully!`));
 }
 
 /**
