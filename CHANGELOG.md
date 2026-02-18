@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-02-18
+
+### 🚀 Features (WebSockets)
+
+- **New WebSocket Architecture**: Introduced `createGateway` with a Fluent Builder API.
+- **Schema-First Validation**: Incoming messages are automatically validated against Zod schemas defined in `payload`.
+- **Dependency Injection**: Services are injected into all event handlers and lifecycle hooks.
+- **Authentication Support**: Added `middleware` property for secure handshake authentication.
+- **Strict Typing**: Full TypeScript support for custom `Socket` interfaces (e.g. `AuthedSocket`).
+
+### 🐛 Fixes
+
+- **Core**: Relaxed `registerGateway` generic constraints to allow custom Socket types (fixed `is not assignable to parameter of type Socket` error).
+
+---
+
 ## [0.5.0] - 2026-02-18
 
 ### Core Framework (Enterprise Architecture)
