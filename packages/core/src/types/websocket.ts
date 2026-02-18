@@ -1,83 +1,130 @@
+import { z } from "zod";
 import type { InferZ, ZodAny } from "./route";
+import { Socket } from "socket.io";
 
-/**
- * Configuration for a single Gateway Event
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// Runtime Types
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface GatewayEventConfig<
   Schema extends ZodAny = any,
-  Services extends Record<string, unknown> = any
+  Services extends Record<string, unknown> = any,
+  Client = Socket
 > {
-  /**
-   * The event name to listen for (e.g., 'message', 'join')
-   */
   event: string;
-
-  /**
-   * Optional Zod Schema to validate incoming data
-   */
-  schema?: Schema;
-
-  /**
-   * The handler function
-   */
+  payload?: Schema;
   handler: (ctx: {
-    client: any; // Socket instance
-    data: InferZ<Schema>;
+    client: Client;
+    message: InferZ<Schema>;
   } & Services) => void | Promise<void> | any;
 }
 
-/**
- * Configuration for a WebSocket Gateway
- */
-/**
- * Configuration for a WebSocket Gateway
- */
 export interface GatewayConfig<
   Services extends Record<string, unknown> = any,
-  Events extends readonly GatewayEventConfig<any, Services>[] = GatewayEventConfig<any, Services>[]
+  Client = Socket
 > {
-  /**
-   * Namespace for this gateway (e.g., '/chat')
-   * @default '/'
-   */
   namespace?: string;
-
-  /**
-   * Dependencies to inject into handlers
-   */
   inject?: Services;
-
-  /**
-   * Lifecycle hook: Called when a client connects
-   */
-  onConnect?: (client: any, deps: Services) => void;
-
-  /**
-   * Lifecycle hook: Called when a client disconnects
-   */
-  onDisconnect?: (client: any, deps: Services) => void;
-
-  /**
-   * List of event handlers
-   */
-  events: Events;
+  middleware?: Array<(socket: Client, deps: Services) => Promise<void> | void>;
+  onConnect?: (client: Client, deps: Services) => void;
+  onDisconnect?: (client: Client, deps: Services) => void;
+  events: GatewayEventConfig<any, Services, Client>[];
 }
 
-/**
- * Helper to create a type-safe gateway configuration
- */
-export function createGateway<
-  Services extends Record<string, unknown>,
-  const Events extends readonly { event: string; schema?: ZodAny }[]
->(
-  config: Omit<GatewayConfig<Services, any>, "events"> & {
-    events: {
-      [K in keyof Events]: GatewayEventConfig<Events[K]["schema"], Services> & {
-          event: Events[K]["event"];
-          schema?: Events[K]["schema"];
-      }
-    }
+// ─────────────────────────────────────────────────────────────────────────────
+// GatewayBuilder — returned by createGateway()
+//
+// Each .event() call is its own isolated generic resolution:
+//   S is inferred from payload → handler's message is typed as z.infer<S>
+//   Services is captured once from inject → available in every handler
+//
+// This is identical to how createRoute() infers B from request.body.
+// The fluent chain is just sugar — internally it pushes to an events array.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export class GatewayBuilder<Services extends Record<string, unknown>, Client = Socket> {
+  private config: GatewayConfig<Services, Client>;
+
+  constructor(config: Omit<GatewayConfig<Services, Client>, "events">) {
+    this.config = { ...config, events: [] };
   }
-): GatewayConfig<Services, any> {
-  return config as any;
+
+  /**
+   * Register a typed event on this gateway.
+   * `message` is automatically inferred from `payload`.
+   * All injected services are available alongside `client` and `message`.
+   *
+   * @example
+   * ```typescript
+   * .event({
+   *   event: "message",
+   *   payload: MessageSchema,
+   *   handler: ({ client, message, authService }) => {
+   *     message.text        // ✅ string
+   *     authService.verify  // ✅ typed
+   *   },
+   * })
+   * ```
+   */
+  event<S extends z.ZodTypeAny = z.ZodNever>(config: {
+    event: string;
+    payload?: S;
+    handler: (ctx: {
+      client: Client;
+      /** Auto-typed from `payload`. `unknown` when payload is omitted. */
+      message: [S] extends [z.ZodNever] ? unknown : z.infer<S>;
+    } & Services) => void | Promise<void> | any;
+  }): this {
+    this.config.events.push(config as any);
+    return this;
+  }
+
+  /** @internal — used by the adapter to get the resolved config */
+  getConfig(): GatewayConfig<Services, Client> {
+    return this.config;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createGateway
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Create a type-safe WebSocket gateway.
+ *
+ * Chain `.event()` calls to register events. Each event infers `message`
+ * automatically from `payload` and has access to all injected services.
+ *
+ * @example
+ * ```typescript
+ * export const chatGateway = createGateway({
+ *   namespace: "/chat",
+ *   inject: { authService, db },
+ *   onConnect: (client, { authService }) => { ... },
+ * })
+ *   .event({
+ *     event: "message",
+ *     payload: Schema.object({ text: Schema.string() }),
+ *     handler: ({ client, message, authService }) => {
+ *       message.text        // ✅ string — inferred from payload
+ *       authService.verify  // ✅ fully typed — from inject
+ *     },
+ *   })
+ *   .event({
+ *     event: "join",
+ *     payload: Schema.object({ room: Schema.string() }),
+ *     handler: ({ client, message }) => {
+ *       client.join(message.room) // ✅ string
+ *     },
+ *   });
+ * ```
+ */
+export function createGateway<Services extends Record<string, unknown>, Client = Socket>(config: {
+  namespace?: string;
+  inject?: Services;
+  middleware?: Array<(socket: Client, deps: Services) => Promise<void> | void>;
+  onConnect?: (client: Client, deps: Services) => void;
+  onDisconnect?: (client: Client, deps: Services) => void;
+}): GatewayBuilder<Services, Client> {
+  return new GatewayBuilder<Services, Client>(config);
 }
