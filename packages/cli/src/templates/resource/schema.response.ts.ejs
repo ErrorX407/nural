@@ -1,0 +1,8 @@
+import { Schema } from "nural";
+
+export const <%= className %>Response = Schema.object({
+  id: Schema.string(),
+  name: Schema.string(),
+  createdAt: Schema.string().datetime(),
+  updatedAt: Schema.string().datetime(),
+});
