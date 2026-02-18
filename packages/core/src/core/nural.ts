@@ -13,6 +13,7 @@ import { applyHelmetExpress, applyHelmetFastify } from "../middleware/helmet";
 import { httpLogger } from "../middleware/http-logger";
 import type { NuralConfig, ResolvedDocsConfig } from "../types/config";
 import { resolveDocsConfig } from "../types/config";
+import type { CronJobConfig } from "../types/cron";
 import type { ResolvedErrorHandlerConfig } from "../types/error";
 import { resolveErrorHandlerConfig } from "../types/error";
 import type {
@@ -21,8 +22,11 @@ import type {
 } from "../types/middleware";
 import { resolveCorsConfig, resolveHelmetConfig } from "../types/middleware";
 import type { AnyRouteConfig } from "../types/route";
+import type { GatewayConfig } from "../types/websocket";
+import { CronService } from "./cron.service";
 import { Logger } from "./logger";
-import { ModuleConfig, ProviderMap } from "./module";
+import { ModuleConfig } from "./module";
+import { SocketIoAdapter } from "../adapters/socket-io.adapter";
 
 /**
  * Nural - The intelligent, schema-first REST framework
@@ -49,6 +53,8 @@ export class Nural {
   private errorHandlerConfig: ResolvedErrorHandlerConfig;
   private isExpress: boolean;
   public logger: Logger;
+  private cronService: CronService;
+  private socketAdapter: SocketIoAdapter;
 
   private shutdownHooks: Array<() => Promise<void> | void> = [];
   private isShuttingDown = false;
@@ -61,8 +67,17 @@ export class Nural {
     this.errorHandlerConfig = resolveErrorHandlerConfig(config.errorHandler);
     this.docsGenerator = new DocumentationGenerator(this.docsConfig);
 
-    // Initialize System Logger
-    this.logger = new Logger("Nural");
+    // Initialize System Logger & Transport
+    if (config.logger?.file?.enabled) {
+      Logger.setFileTransport(config.logger.file);
+      // Register shutdown hook for file transport
+      this.shutdownHooks.push(async () => {
+         Logger.fileTransport?.close();
+      });
+    }
+    this.logger = new Logger("Nural", config.logger);
+    this.cronService = new CronService();
+    this.socketAdapter = new SocketIoAdapter();
 
     // Select adapter based on framework config
     this.isExpress = config.framework !== "fastify";
@@ -76,8 +91,7 @@ export class Nural {
     if (config.logger?.enabled !== false) {
       this.adapter.use(
         httpLogger({
-          showUserAgent: config.logger?.showUserAgent,
-          showTime: config.logger?.showTime ?? true,
+          config: config.logger,
         }),
       );
     }
@@ -152,11 +166,33 @@ export class Nural {
         console.error("Error during shutdown hook", err instanceof Error ? err.message : String(err));
       }
     }
+    
+    // 3. Stop Cron Jobs
+    this.cronService.stopAll();
+
+    // 4. Close WebSockets
+    this.socketAdapter.close();
 
     console.error("👋 Goodbye!");
     
     // Give a small delay for logs to flush before exiting
     setTimeout(() => process.exit(0), 100);
+  }
+
+  /**
+   * Register a scheduled Cron Job
+   * @param config Cron Job Configuration
+   */
+  public registerCron(config: CronJobConfig): void {
+      this.cronService.addJob(config);
+  }
+
+  /**
+   * Register a WebSocket Gateway
+   * @param config Gateway Configuration
+   */
+  public registerGateway(config: GatewayConfig<any>): void {
+      this.socketAdapter.register(config);
   }
 
   private setupSignalHandlers() {
@@ -174,8 +210,6 @@ export class Nural {
     });
   }
 
-
-
   /**
    * Start the server
    */
@@ -186,6 +220,9 @@ export class Nural {
 
     return new Promise((resolve) => {
       const server = this.adapter.listen(port, () => {
+        // Attach WebSockets
+        this.socketAdapter.attach(server);
+
         this.logger.log(`🚀 Nural Server running on port ${port}`);
         if (this.docsConfig.enabled) {
           this.logger.log(
