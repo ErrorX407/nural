@@ -1,0 +1,20 @@
+{
+  "name": "nural-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r --parallel --aggregate-output run build",
+    "test": "pnpm -r --parallel --aggregate-output run test",
+    "lint": "pnpm -r --parallel run lint"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.1",
+    "turbo": "^1.11.3"
+  },
+  "dependencies": {
+    "cli": "link:../../../AppData/Local/pnpm/global/5/node_modules/@nural/cli",
+    "nural": "link:../../../AppData/Local/pnpm/global/5/node_modules/nural"
+  }
+}
