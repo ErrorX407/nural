@@ -11,13 +11,16 @@ import { docsCommand } from "./commands/docs.js";
 import { routesCommand } from "./commands/routes.js";
 import { consoleCommand } from "./commands/console.js";
 import { cleanCommand } from "./commands/clean.js";
+import { doctorCommand } from "./commands/doctor.js";
+import { completionCommand } from "./commands/completion.js";
+import { updateCommand } from "./commands/update.js";
 
 const program = new Command();
 
 program
   .name("nural")
   .description("Nural CLI - The intelligent framework tool")
-  .version("0.4.1");
+  .version("0.4.2");
 
 program
   .command("new <project-name>")
@@ -25,7 +28,7 @@ program
   .action(newCommand);
 
 program
-  .command("generate <name>")
+  .command("generate <schematic> [name]")
   .alias("g")
   .description("Generate a new resource (Module, Controller, Service, Schema)")
   .action(generateCommand);
@@ -89,5 +92,21 @@ program
   .command("clean")
   .description("Remove build artifacts and temporary files")
   .action(cleanCommand);
+
+program
+  .command("doctor")
+  .description("Check your system and project health")
+  .action(doctorCommand);
+
+program
+  .command("completion")
+  .description("Generate shell completion script")
+  .action(completionCommand(program));
+
+program
+  .command("update")
+  .alias("u")
+  .description("Update Nural dependencies to the latest version")
+  .action(updateCommand);
 
 program.parse(process.argv);

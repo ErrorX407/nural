@@ -13,7 +13,16 @@ extendZodWithOpenApi(z);
 
 // Core exports
 export { Nural } from "./core";
-export { createRoute, createModule, defineMiddleware, createBuilder } from "./core";
+export {
+  createRoute,
+  createModule,
+  defineMiddleware,
+  createBuilder,
+  defineGuard,
+  defineInterceptor,
+  defineProvider,
+  type InferContext,
+} from "./core";
 export { Logger } from "./core/logger";
 export type { LoggerConfig } from "./core/logger";
 export * from "./core/exceptions";
@@ -34,6 +43,26 @@ export type {
   RouteHandler,
   AnyRouteConfig,
 } from "./types";
+
+export type {
+  GuardHandler,
+} from "./core/guards";
+
+export type {
+  InterceptorHandler,
+  NextFn,
+} from "./core/interceptor";
+
+export type {
+  ProviderConfig,
+  NuralProvider,
+} from "./core/provider";
+
+export type {
+  ExceptionFilterHandler,
+} from "./core/filters/exception-filter";
+
+export { defineExceptionFilter } from "./core/filters/exception-filter";
 
 // Re-export Zod for convenience
 export { z as Schema } from "zod";

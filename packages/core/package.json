@@ -1,6 +1,6 @@
 {
   "name": "nural",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "The intelligent, schema-first REST framework for Node.js",
   "type": "module",
   "main": "./dist/index.cjs",

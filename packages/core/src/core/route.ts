@@ -4,6 +4,8 @@
 
 import type { MiddlewareHandler } from "./middleware";
 import type { ZodAny, RouteConfig } from "../types/route";
+import { GuardHandler } from "./guards";
+import { InterceptorHandler } from "./interceptor";
 
 type CombinedMiddleware<
   Base extends MiddlewareHandler<any, any>[],
@@ -66,7 +68,11 @@ export interface RouteBuilder<
  */
 export function createBuilder<
   BaseM extends MiddlewareHandler<any, any>[],
->(baseMiddleware: BaseM): RouteBuilder<BaseM> {
+>(
+  baseMiddleware: BaseM,
+  baseGuards: GuardHandler[] = [],
+  baseInterceptors: InterceptorHandler[] = []
+): RouteBuilder<BaseM> {
 
   const builder = <
     P extends ZodAny = undefined,
@@ -81,14 +87,23 @@ export function createBuilder<
     }
   ): RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>, InjectedServices> => {
 
-    // 1. Merge the middleware arrays at runtime
+// 1. Merge Middleware (Affects Types)
     const localMiddleware = (config.middleware || []) as MiddlewareHandler<any, any>[];
     const combinedMiddleware = [...baseMiddleware, ...localMiddleware];
 
-    // 2. Return the full config object
+    // 2. Merge Guards & Interceptors (Runtime only)
+    const localGuards = config.guards || [];
+    const combinedGuards = [...baseGuards, ...localGuards];
+
+    const localInterceptors = config.interceptors || [];
+    const combinedInterceptors = [...baseInterceptors, ...localInterceptors];
+
+    // 3. Return full config
     return {
       ...config,
       middleware: combinedMiddleware,
+      guards: combinedGuards,
+      interceptors: combinedInterceptors
     } as unknown as RouteConfig<P, Q, B, R, CombinedMiddleware<BaseM, M>, InjectedServices>;
   };
 

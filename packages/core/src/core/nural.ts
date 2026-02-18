@@ -50,6 +50,8 @@ export class Nural {
   private isExpress: boolean;
   public logger: Logger;
 
+  private shutdownHooks: Array<() => Promise<void> | void> = [];
+  private isShuttingDown = false;
   private routeRegistry: AnyRouteConfig[] = [];
 
   constructor(config: NuralConfig = {}) {
@@ -82,12 +84,124 @@ export class Nural {
 
     // Apply built-in middleware
     this.applyBuiltInMiddleware();
+
+    // Automatically bind signal handlers
+    this.setupSignalHandlers();
   }
 
   get server() {
     return this.adapter.server;
   }
 
+  /**
+   * Register an infrastructure provider (Database, Redis, etc.)
+   * Nural will:
+   * 1. Call provider.init() immediately (await it).
+   * 2. Automatically call provider.destroy() on shutdown.
+   */
+  public async registerProvider<T>(provider: import("./provider").NuralProvider<T>): Promise<T> {
+    this.logger.info(`Registering provider: ${provider.name}`);
+    
+    // 1. Initialize
+    await provider.init();
+    
+    // 2. Register Teardown
+    this.onShutdown(async () => {
+      this.logger.info(`Disconnecting provider: ${provider.name}`);
+      await provider.destroy();
+    });
+
+    return provider.getInstance();
+  }
+
+  /**
+   * Register a custom cleanup function
+   * Example: Closing WebSocket servers, flushing logs.
+   */
+  public onShutdown(callback: () => Promise<void> | void) {
+    this.shutdownHooks.push(callback);
+  }
+
+  /**
+   * 🛑 The Graceful Shutdown Orchestrator
+   */
+  public async close() {
+    if (this.isShuttingDown) return;
+    this.isShuttingDown = true;
+    
+    // Use console.error to bypass stdout buffering during shutdown
+    console.error("\n🛑 Shutting down gracefully...");
+
+    // 1. Stop accepting new HTTP requests
+    if (this.server) {
+      // Create a promise that resolves when the server closes
+      await new Promise<void>((resolve) => {
+        this.server?.close((err) => {
+             if (err) console.error("Error closing server:", err);
+             resolve();
+        });
+      });
+      console.error("❌ HTTP Server closed");
+    }
+
+    // 2. Execute all shutdown hooks (Reverse order: LIFO)
+    for (const hook of this.shutdownHooks.reverse()) {
+      try {
+        await hook();
+      } catch (err) {
+        console.error("Error during shutdown hook", err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    console.error("👋 Goodbye!");
+    
+    // Give a small delay for logs to flush before exiting
+    setTimeout(() => process.exit(0), 100);
+  }
+
+  private setupSignalHandlers() {
+    // Only bind once
+    if (process.listenerCount("SIGINT") > 0) return;
+
+    const signals = ["SIGINT", "SIGTERM", "SIGQUIT"];
+    
+    signals.forEach((signal) => {
+      process.on(signal, () => {
+        if (this.isShuttingDown) return;
+        console.error(`\nReceived ${signal}`);
+        this.close();
+      });
+    });
+  }
+
+
+
+  /**
+   * Start the server
+   */
+  public async start(port: number): Promise<Server> {
+    if (this.docsConfig.enabled) {
+      this.setupDocs();
+    }
+
+    return new Promise((resolve) => {
+      const server = this.adapter.listen(port, () => {
+        this.logger.log(`🚀 Nural Server running on port ${port}`);
+        if (this.docsConfig.enabled) {
+          this.logger.log(
+            `📚 Docs available at http://localhost:${port}${this.docsConfig.path}`,
+          );
+        }
+        if (this.corsConfig) {
+          this.logger.log(`🔓 CORS enabled`);
+        }
+        if (this.helmetConfig) {
+          this.logger.log(`🛡️  Helmet security headers enabled`);
+        }
+        resolve(server);
+      });
+    });
+  }
   /**
    * Apply CORS and Helmet middleware based on config
    */
@@ -153,14 +267,57 @@ export class Nural {
       const routeProviders = route.inject || {};
 
       const wrappedHandler = async (ctx: any) => {
-        const flattenedContext = {
-          ...ctx,
-          // 1. Route Defaults (inject)
-          // 2. Module Overrides (providers) -> Overrides Route defaults (Good for Mocking!)
-          ...routeProviders,
-          ...moduleProviders
+        // 0. Create Execution Context
+        const context = {
+          req: ctx.req,
+          meta: route.meta || {},
+          handlerName: originalHandler.name || "anonymous"
         };
-        return originalHandler(flattenedContext);
+        
+        try {
+          const flattenedContext = {
+            ...ctx,
+            // 1. Route Defaults (inject)
+            // 2. Module Overrides (providers) -> Overrides Route defaults (Good for Mocking!)
+            ...routeProviders,
+            ...moduleProviders
+          };
+
+          // 1. Run Guards
+          if (route.guards) {
+            for (const guard of route.guards) {
+              const canActivate = await guard(ctx.req, context);
+              if (!canActivate) {
+                const error = new Error("Forbidden resource");
+                (error as any).statusCode = 403;
+                throw error;
+              }
+            }
+          }
+
+          // 2. Run Interceptors (Pre-Controller)
+          // We define a recursive runner to handle the "onion" architecture
+          const runInterceptors = async (index: number): Promise<any> => {
+            if (!route.interceptors || index >= route.interceptors.length) {
+               return originalHandler(flattenedContext); // Base case: call handler
+            }
+            
+            const interceptor = route.interceptors[index];
+            return interceptor(ctx.req, () => runInterceptors(index + 1), context);
+          };
+
+          return await runInterceptors(0);
+
+        } catch (error) {
+           // 3. Run Exception Filters
+           if (route.filters) {
+             for (const filter of route.filters) {
+               await filter(error, ctx.req, ctx.res, context);
+               if (ctx.res.headersSent) return; // Stop if filter handled it
+             }
+           }
+           throw error; // Rethrow to global handler if not handled
+        }
       };
 
       const hydratedRoute = {
@@ -189,29 +346,6 @@ export class Nural {
     }
   }
 
-  /**
-   * Start the server
-   */
-  start(port: number): Server {
-    if (this.docsConfig.enabled) {
-      this.setupDocs();
-    }
-
-    return this.adapter.listen(port, () => {
-      console.log(`🚀 Nural Server running on port ${port}`);
-      if (this.docsConfig.enabled) {
-        console.log(
-          `📚 Docs available at http://localhost:${port}${this.docsConfig.path}`,
-        );
-      }
-      if (this.corsConfig) {
-        console.log(`🔓 CORS enabled`);
-      }
-      if (this.helmetConfig) {
-        console.log(`🛡️  Helmet security headers enabled`);
-      }
-    });
-  }
 
   private joinPaths(prefix: string, path: string): string {
     const cleanPrefix = prefix.replace(/\/+$/, ""); // Remove trailing slash
@@ -235,12 +369,6 @@ export class Nural {
       throw new Error("Documentation is disabled in Nural configuration.");
     }
     return this.docsGenerator.generateSpec();
-  }
-
-  private joinPaths(prefix: string, path: string): string {
-    const cleanPrefix = prefix.replace(/\/+$/, ""); // Remove trailing slash
-    const cleanPath = path.replace(/^\/+/, ""); // Remove leading slash
-    return `${cleanPrefix}/${cleanPath}` || "/";
   }
 
   /**

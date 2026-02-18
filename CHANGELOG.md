@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-02-18
+
+### Core Framework (Enterprise Architecture)
+
+- **Lifecycle Management**: Introduced `defineProvider` and `app.registerProvider()`. Nural now automatically manages connection (`init`) and cleanup (`destroy`) logic for databases and services, ensuring graceful shutdowns (LIFO order).
+- **New Guard System**: `defineGuard` now receives a strictly typed `ExecutionContext` and returns a `boolean`. It can access route metadata (e.g., Roles) defined in `createRoute`.
+- **New Interceptor System**: `defineInterceptor` now wraps the request execution (Onion Architecture), allowing logic to run *before* and *after* the handler, or transform the response.
+- **Exception Filters**: Added `defineExceptionFilter` to catch and standardize errors globally or per-route.
+- **Context & Metadata**: Added `meta` property to `createRoute`, allowing developers to attach static data (like permissions) that Guards can read at runtime.
+
+### CLI (Health & Maintenance)
+
+- **New Command: `nural doctor`**: Performs a deep health check on the environment (Node version, .env) and verifies TCP connectivity to infrastructure (Redis, Postgres, Mongo).
+- **New Command: `nural update`**: Interactively scans and updates all `@nural/*` dependencies to their latest versions.
+- **New Command: `nural completion`**: Generates a shell autocompletion script for Bash and Zsh.
+- **Granular Generators**: `nural generate` (alias `g`) can now scaffold individual components:
+  - `nural g middleware <name>`
+  - `nural g guard <name>`
+  - `nural g interceptor <name>`
+  - `nural g provider <name>`
+  - `nural g filter <name>`
+
+---
+
 ## [0.4.1] - 2026-02-17
 
 ### CLI (Developer Experience Pack)

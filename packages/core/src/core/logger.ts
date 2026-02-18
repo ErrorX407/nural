@@ -3,6 +3,8 @@
  * Lightweight, colorful, and powerful logging system
  */
 
+import util from "util";
+
 // ANSI Color Codes
 const colors = {
   reset: "\x1b[0m",
@@ -41,34 +43,49 @@ export class Logger {
     return new Date().toISOString();
   }
 
-  private print(level: string, message: string, color: string) {
+  private print(level: string, message: any, color: string, ...args: any[]) {
     if (this.config.enabled === false) return;
 
     const pid = process.pid;
     const timestamp = this.getTimestamp();
     const ctx = `[${colors.yellow}${this.context}${colors.reset}]`;
+    
+    const format = (msg: any) => {
+      if (typeof msg === 'string') return msg;
+      return util.inspect(msg, { colors: true, depth: null, breakLength: Infinity });
+    };
+
+    const formattedMessage = format(message);
 
     // Format: [Nural] 1234 - 10/20/2025... [Context] Message
     process.stdout.write(
       `${colors.green}[Nural]${colors.reset} ${colors.gray}${pid}${colors.reset}  - ` +
-        `${timestamp}   ${ctx} ${color}${message}${colors.reset}\n`,
+        `${timestamp}   ${ctx} ${color}${formattedMessage}${colors.reset}\n`,
     );
+     if (args.length > 0) {
+      args.forEach(arg => {
+        process.stdout.write(`${format(arg)}\n`);
+      });
+    }
   }
 
-  log(message: string) {
-    this.print("LOG", message, colors.green);
+  log(message: any, ...args: any[]) {
+    this.print("LOG", message, colors.green, ...args);
   }
 
-  error(message: string, trace?: string) {
-    this.print("ERROR", message, colors.red);
-    if (trace) process.stderr.write(`${colors.red}${trace}${colors.reset}\n`);
+  info(message: any, ...args: any[]) {
+    this.print("INFO", message, colors.cyan, ...args);
   }
 
-  warn(message: string) {
-    this.print("WARN", message, colors.yellow);
+  error(message: any, ...args: any[]) {
+    this.print("ERROR", message, colors.red, ...args);
   }
 
-  debug(message: string) {
-    this.print("DEBUG", message, colors.magenta);
+  warn(message: any, ...args: any[]) {
+    this.print("WARN", message, colors.yellow, ...args);
+  }
+
+  debug(message: any, ...args: any[]) {
+    this.print("DEBUG", message, colors.magenta, ...args);
   }
 }

@@ -3,7 +3,6 @@
  * Logs incoming requests with duration and status
  */
 
-import { defineMiddleware } from "../core/middleware";
 import { Logger } from "../core/logger";
 
 // Method Colors

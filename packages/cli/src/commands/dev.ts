@@ -49,18 +49,25 @@ export async function devCommand(options: { watch?: boolean }) {
     try {
         // 2. Run tsx watch
         // stdio: 'inherit' lets the child process print directly to the console
-        await execa("tsx", ["watch", "src/main.ts"], {
+        const child = execa("tsx", ["watch", "src/main.ts"], {
             cwd,
             stdio: "inherit",
-            env: env
+            env: env,
+            reject: false // Don't throw on exit code
+        });
+        
+        // Forward signals to child manually to ensure they get them
+        process.on('SIGINT', () => {
+             child.kill('SIGINT');
+        });
+        
+        process.on('SIGTERM', () => {
+             child.kill('SIGTERM');
         });
 
+        await child;
+
     } catch (error: any) {
-        // Check if it was a user interrupt (Ctrl+C)
-        if (error.signal !== 'SIGINT') {
-            console.error(chalk.red("\n❌ Server crashed."));
-        } else {
-            console.log(chalk.yellow("\n👋 Goodbye!"));
-        }
+         // ...
     }
 }

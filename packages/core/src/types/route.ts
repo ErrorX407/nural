@@ -8,6 +8,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { z } from "zod";
 import type { MiddlewareHandler } from "../core/middleware";
 import type { HttpMethod } from "./http";
+import { ExceptionFilterHandler, GuardHandler, InterceptorHandler } from "../core";
 
 /**
  * Generic Zod type - either a Zod schema or undefined
@@ -33,12 +34,12 @@ type MiddlewareReturn<M> =
  */
 type MergeMiddlewareTypes<M extends MiddlewareHandler<any, any>[] | undefined> =
   M extends Array<any>
-    ? MiddlewareReturn<M[number]> extends infer R
-      ? R extends void
-        ? {}
-        : R
-      : {}
-    : {};
+  ? MiddlewareReturn<M[number]> extends infer R
+  ? R extends void
+  ? {}
+  : R
+  : {}
+  : {};
 
 /**
  * Context passed to route handlers
@@ -60,6 +61,8 @@ export type RouteContext<
   req: Request | FastifyRequest;
   /** Raw response object (Express or Fastify) */
   res: Response | FastifyReply;
+  /** Route metadata */
+  meta: Record<string, any>;
 } & MergeMiddlewareTypes<M> & Services;
 
 /**
@@ -97,8 +100,14 @@ export interface RouteConfig<
   description?: string;
   /** Tags for grouping in documentation */
   tags?: string[];
+  /** Guards to run before handler */
+  guards?: GuardHandler[];
+  /** Interceptors to run before and after handler */
+  interceptors?: InterceptorHandler[];
   /** Middleware to run before handler */
   middleware?: M;
+  /** Exception filters to handle errors */
+  filters?: ExceptionFilterHandler[];
   /** Request validation schemas */
   request?: {
     /** Path parameters schema */
@@ -128,7 +137,11 @@ export interface RouteConfig<
   handler: RouteHandler<P, Q, B, R, M, Services>;
 }
 
-/**
- * Catch-all type for arrays of routes
- */
-export type AnyRouteConfig = RouteConfig<any, any, any, any, any, any>;
+/** Helper type for "any route config" (used in arrays) */
+export type AnyRouteConfig = RouteConfig<any, any, any, any, any, any> & {
+  handler: RouteHandler<any, any, any, any, any, any>;
+  meta?: Record<string, any>;
+  guards?: any[];
+  interceptors?: any[];
+  filters?: any[];
+};
