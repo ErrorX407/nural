@@ -13,6 +13,7 @@ export type {
   RouteConfig,
   AnyRouteConfig,
 } from "./route";
+export { GatewayBuilder, type GatewayConfig, type GatewayEventConfig } from "./websocket";
 export type {
   CorsConfig,
   HelmetConfig,

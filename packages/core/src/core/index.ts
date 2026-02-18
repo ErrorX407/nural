@@ -13,3 +13,5 @@ export * from "./provider";
 export * from "./context";
 export * from "./exceptions";
 export * from "./filters/exception-filter";
+export * from "./config";
+export * from "./logger.service";

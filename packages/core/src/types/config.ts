@@ -168,6 +168,11 @@ export interface DocsConfig {
 /**
  * Main Nural framework configuration
  */
+import type { LoggerConfig } from "../core/logger";
+
+/**
+ * Main Nural framework configuration
+ */
 export interface NuralConfig {
   /** Server framework to use */
   framework?: "express" | "fastify";
@@ -178,11 +183,7 @@ export interface NuralConfig {
   /** Helmet security headers (true for defaults, false to disable, or HelmetConfig) */
   helmet?: boolean | import("./middleware").HelmetConfig;
   /** Logger configuration */
-  logger?: {
-    enabled?: boolean;
-    showUserAgent?: boolean;
-    showTime?: boolean;
-  };
+  logger?: LoggerConfig;
   /** Global error handler (true for defaults, function, or config) */
   errorHandler?:
     | boolean

@@ -6,3 +6,4 @@
 export type { ServerAdapter, StaticRouteResponse } from "./base";
 export { ExpressAdapter } from "./express";
 export { FastifyAdapter } from "./fastify";
+export { SocketIoAdapter } from "./socket-io.adapter";

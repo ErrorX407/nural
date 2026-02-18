@@ -3,7 +3,9 @@
  * Logs incoming requests with duration and status
  */
 
-import { Logger } from "../core/logger";
+import { Logger, LoggerConfig } from "../core/logger";
+import * as crypto from "crypto";
+import { runInContext } from "../core/storage";
 
 // Method Colors
 const methodColors: Record<string, string> = {
@@ -25,48 +27,68 @@ export interface HttpLoggerOptions {
   showTime?: boolean;
   /** Custom logger context name */
   context?: string;
+  /** Logger configuration (JSON, custom levels, etc.) */
+  config?: LoggerConfig;
 }
 
 /**
  * Creates an HTTP logger middleware
  */
+
 export const httpLogger = (options: HttpLoggerOptions = {}) => {
-  const logger = new Logger(options.context || "Router");
+  const logger = new Logger(options.context || "Router", options.config);
 
   return (req: any, res: any, next?: () => void) => {
-    const start = Date.now();
+    const correlationId = crypto.randomUUID();
+    
+    // Run the request in a storage context
+    runInContext({ correlationId }, () => {
+        const start = Date.now();
+        const rawRes = res.raw || res;
 
-    // Handle both Express (res) and Fastify (res.raw)
-    const rawRes = res.raw || res;
+        // Set Correlation ID header if not present
+        if (req.headers && !req.headers["x-correlation-id"]) {
+            // In a real generic middleware, we might not be able to set req headers easily if they are read-only
+            // But we can try to set response header
+             if (res.setHeader) {
+                res.setHeader("X-Correlation-ID", correlationId);
+            }
+        }
 
-    // Hook into the 'finish' event (Standard Node.js Stream Event)
-    rawRes.on("finish", () => {
-      const { method, url, headers } = req;
-      const duration = Date.now() - start;
-      const status = rawRes.statusCode;
-      const userAgent = headers ? headers["user-agent"] || "-" : "-";
+        rawRes.on("finish", () => {
+          // Re-enter the context to ensure logger has access to correlationId
+          runInContext({ correlationId }, () => {
+              const { method, url, headers } = req;
+              const duration = Date.now() - start;
+              const status = rawRes.statusCode;
+              const userAgent = headers ? headers["user-agent"] || "-" : "-";
 
-      const methodColor = methodColors[method] || resetColor;
-      const coloredMethod = `${methodColor}${method}${resetColor}`;
+              const methodColor = methodColors[method] || resetColor;
+              const coloredMethod = `${methodColor}${method}${resetColor}`;
 
-      let logMessage = `${coloredMethod} ${url} ${status}`;
+              let logMessage = `${coloredMethod} ${url} ${status}`;
 
-      if (options.showTime !== false) {
-        logMessage += ` +${duration}ms`;
-      }
+              if (options.showTime !== false) {
+                logMessage += ` +${duration}ms`;
+              }
 
-      if (options.showUserAgent) {
-        logMessage += ` - ${userAgent}`;
-      }
+              // Check config for User Agent
+              const meta: any = {};
+              if (options.showUserAgent || options.config?.http?.userAgent) {
+                meta.userAgent = userAgent;
+                // logMessage += ` - ${userAgent}`; // Handled by logger formatters now
+              }
 
-      // Color code based on status
-      if (status >= 500) logger.error(logMessage);
-      else if (status >= 400) logger.warn(logMessage);
-      else logger.log(logMessage);
+              // Color code based on status
+              if (status >= 500) logger.error(logMessage, meta);
+              else if (status >= 400) logger.warn(logMessage, meta);
+              else logger.log(logMessage, meta);
+          });
+        });
+
+        if (next) {
+          next();
+        }
     });
-
-    if (next) {
-      next();
-    }
   };
 };

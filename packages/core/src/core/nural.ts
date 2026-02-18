@@ -13,6 +13,7 @@ import { applyHelmetExpress, applyHelmetFastify } from "../middleware/helmet";
 import { httpLogger } from "../middleware/http-logger";
 import type { NuralConfig, ResolvedDocsConfig } from "../types/config";
 import { resolveDocsConfig } from "../types/config";
+import type { CronJobConfig } from "../types/cron";
 import type { ResolvedErrorHandlerConfig } from "../types/error";
 import { resolveErrorHandlerConfig } from "../types/error";
 import type {
@@ -21,8 +22,11 @@ import type {
 } from "../types/middleware";
 import { resolveCorsConfig, resolveHelmetConfig } from "../types/middleware";
 import type { AnyRouteConfig } from "../types/route";
+import { CronService } from "./cron.service";
 import { Logger } from "./logger";
-import { ModuleConfig, ProviderMap } from "./module";
+import { ModuleConfig } from "./module";
+import { SocketIoAdapter } from "../adapters";
+import { GatewayBuilder, GatewayConfig } from "../types";
 
 /**
  * Nural - The intelligent, schema-first REST framework
@@ -49,6 +53,8 @@ export class Nural {
   private errorHandlerConfig: ResolvedErrorHandlerConfig;
   private isExpress: boolean;
   public logger: Logger;
+  private cronService: CronService;
+  private socketAdapter: SocketIoAdapter;
 
   private shutdownHooks: Array<() => Promise<void> | void> = [];
   private isShuttingDown = false;
@@ -61,8 +67,17 @@ export class Nural {
     this.errorHandlerConfig = resolveErrorHandlerConfig(config.errorHandler);
     this.docsGenerator = new DocumentationGenerator(this.docsConfig);
 
-    // Initialize System Logger
-    this.logger = new Logger("Nural");
+    // Initialize System Logger & Transport
+    if (config.logger?.file?.enabled) {
+      Logger.setFileTransport(config.logger.file);
+      // Register shutdown hook for file transport
+      this.shutdownHooks.push(async () => {
+        Logger.fileTransport?.close();
+      });
+    }
+    this.logger = new Logger("Nural", config.logger);
+    this.cronService = new CronService();
+    this.socketAdapter = new SocketIoAdapter();
 
     // Select adapter based on framework config
     this.isExpress = config.framework !== "fastify";
@@ -76,8 +91,7 @@ export class Nural {
     if (config.logger?.enabled !== false) {
       this.adapter.use(
         httpLogger({
-          showUserAgent: config.logger?.showUserAgent,
-          showTime: config.logger?.showTime ?? true,
+          config: config.logger,
         }),
       );
     }
@@ -101,10 +115,10 @@ export class Nural {
    */
   public async registerProvider<T>(provider: import("./provider").NuralProvider<T>): Promise<T> {
     this.logger.info(`Registering provider: ${provider.name}`);
-    
+
     // 1. Initialize
     await provider.init();
-    
+
     // 2. Register Teardown
     this.onShutdown(async () => {
       this.logger.info(`Disconnecting provider: ${provider.name}`);
@@ -128,7 +142,7 @@ export class Nural {
   public async close() {
     if (this.isShuttingDown) return;
     this.isShuttingDown = true;
-    
+
     // Use console.error to bypass stdout buffering during shutdown
     console.error("\n🛑 Shutting down gracefully...");
 
@@ -137,8 +151,8 @@ export class Nural {
       // Create a promise that resolves when the server closes
       await new Promise<void>((resolve) => {
         this.server?.close((err) => {
-             if (err) console.error("Error closing server:", err);
-             resolve();
+          if (err) console.error("Error closing server:", err);
+          resolve();
         });
       });
       console.error("❌ HTTP Server closed");
@@ -153,18 +167,41 @@ export class Nural {
       }
     }
 
+    // 3. Stop Cron Jobs
+    this.cronService.stopAll();
+
+    // 4. Close WebSockets
+    this.socketAdapter.close();
+
     console.error("👋 Goodbye!");
-    
+
     // Give a small delay for logs to flush before exiting
     setTimeout(() => process.exit(0), 100);
   }
+
+  /**
+   * Register a scheduled Cron Job
+   * @param config Cron Job Configuration
+   */
+  public registerCron(config: CronJobConfig): void {
+    this.cronService.addJob(config);
+  }
+
+  /**
+   * Register a WebSocket Gateway
+   * @param config Gateway Configuration
+   */
+  public registerGateway(gateway: GatewayConfig<any, any> | GatewayBuilder<any, any>): void {
+    this.socketAdapter.register(gateway);
+  }
+
 
   private setupSignalHandlers() {
     // Only bind once
     if (process.listenerCount("SIGINT") > 0) return;
 
     const signals = ["SIGINT", "SIGTERM", "SIGQUIT"];
-    
+
     signals.forEach((signal) => {
       process.on(signal, () => {
         if (this.isShuttingDown) return;
@@ -173,8 +210,6 @@ export class Nural {
       });
     });
   }
-
-
 
   /**
    * Start the server
@@ -186,6 +221,9 @@ export class Nural {
 
     return new Promise((resolve) => {
       const server = this.adapter.listen(port, () => {
+        // Attach WebSockets
+        this.socketAdapter.attach(server);
+
         this.logger.log(`🚀 Nural Server running on port ${port}`);
         if (this.docsConfig.enabled) {
           this.logger.log(
@@ -273,7 +311,7 @@ export class Nural {
           meta: route.meta || {},
           handlerName: originalHandler.name || "anonymous"
         };
-        
+
         try {
           const flattenedContext = {
             ...ctx,
@@ -299,9 +337,9 @@ export class Nural {
           // We define a recursive runner to handle the "onion" architecture
           const runInterceptors = async (index: number): Promise<any> => {
             if (!route.interceptors || index >= route.interceptors.length) {
-               return originalHandler(flattenedContext); // Base case: call handler
+              return originalHandler(flattenedContext); // Base case: call handler
             }
-            
+
             const interceptor = route.interceptors[index];
             return interceptor(ctx.req, () => runInterceptors(index + 1), context);
           };
@@ -309,14 +347,14 @@ export class Nural {
           return await runInterceptors(0);
 
         } catch (error) {
-           // 3. Run Exception Filters
-           if (route.filters) {
-             for (const filter of route.filters) {
-               await filter(error, ctx.req, ctx.res, context);
-               if (ctx.res.headersSent) return; // Stop if filter handled it
-             }
-           }
-           throw error; // Rethrow to global handler if not handled
+          // 3. Run Exception Filters
+          if (route.filters) {
+            for (const filter of route.filters) {
+              await filter(error, ctx.req, ctx.res, context);
+              if (ctx.res.headersSent) return; // Stop if filter handled it
+            }
+          }
+          throw error; // Rethrow to global handler if not handled
         }
       };
 

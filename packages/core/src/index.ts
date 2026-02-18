@@ -21,9 +21,19 @@ export {
   defineGuard,
   defineInterceptor,
   defineProvider,
+  defineConfig,
   type InferContext,
 } from "./core";
+export * from "./types/route";
+export * from "./types/cron";
+export * from "./types/websocket";
+
+// Coret * from "./types/websocket";
+
+export { ConfigService } from "./core/config";
 export { Logger } from "./core/logger";
+export { LoggerService } from "./core/logger.service";
+export { CronService } from "./core/cron.service";
 export type { LoggerConfig } from "./core/logger";
 export * from "./core/exceptions";
 
