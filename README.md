@@ -37,35 +37,43 @@
 ## Installation
 
 ```bash
-npm install nural express
+npm install @nuraljs/core zod express
 # or
-npm install nural fastify
+npm install @nuraljs/core zod fastify
 ```
 
 ---
 
 ## 🛠️ CLI
 
-Nural comes with a built-in CLI to help you scaffold projects and generate resources.
+Nural comes with a powerful built-in CLI for scaffolding, generation, and DX tools.
 
 ```bash
 # Install nural cli
-npm install -g @nural/cli
+npm install -g @nuraljs/cli
 
-# Create a new project (interactive)
+# Create a new enterprise-ready project
 nural new my-api
 
-# Select integrations during setup:
-# 🔌 WebSockets (Socket.io)
-# 🗄️ PostgreSQL (Prisma)
-# 🍃 MongoDB (Mongoose)
-# ⚡ Redis
-# 🐇 RabbitMQ
+# Add integrations to existing projects
+nural add prisma
+```
 
-# Generate resources
+### DX Commands
+- `nural doctor` - Health check environment & infrastructure
+- `nural update` - Interactively install latest `@nuraljs/*` packages
+- `nural routes` (alias `list`) - View all API endpoints & guards in color-coded matrix
+- `nural console` (alias `tinker`) - Interactive app-loaded REPL for debugging
+- `nural clean` - Utility to clear build artifacts & CLI temporary files
+- `nural completion` - Generate shell autocompletion
+
+### Granular Generators
+```bash
 nural generate route users
-nural generate middleware auth
-nural generate service user
+nural generate guard roles
+nural generate interceptor cache
+nural generate provider database
+nural generate filter http-exception
 ```
 
 ---
@@ -73,7 +81,7 @@ nural generate service user
 ## Quick Start
 
 ```typescript
-import { Nural, createRoute, z } from "nural";
+import { Nural, createRoute, Schema } from "@nuraljs/core";
 
 // Create app
 const app = new Nural({ framework: "express", docs: true });
@@ -84,12 +92,22 @@ const helloRoute = createRoute({
   path: "/hello",
   summary: "Health check",
   responses: {
-    200: z.object({ message: z.string() }),
+    200: Schema.object({ message: Schema.string() }),
   },
   handler: async () => {
-    return { message: "Hello from NuralJS
+    return { message: "Hello from NuralJS!" };
+  }
+});
+
+app.register(helloRoute);
+
+app.start(3000).then(() => {
+  console.log("Server running on port 3000");
+});
+```
 
 The official REST Framework for NuralJS. Nural is built around `Zod` and functional modules for ultimate intelligence. 
+
 ```bash
 npm install @nuraljs/core
 ```
@@ -106,7 +124,7 @@ npm install @nuraljs/core zod
 Requests are functionally typed using strict validation. We use standard `try/catch` handlers for safety.
 
 ```typescript
-import { createRoute, z } from "@nuraljs/core";
+import { createRoute, Schema } from "@nuraljs/core";
 import { CreateUserDTO } from "./create-user.dto";
 
 export const createUserController = createRoute({
@@ -115,8 +133,8 @@ export const createUserController = createRoute({
   schema: {
     body: CreateUserDTO,
     response: {
-      201: z.object({ id: z.string(), message: z.string() }),
-      400: z.object({ error: z.string() })
+      201: Schema.object({ id: Schema.string(), message: Schema.string() }),
+      400: Schema.object({ error: Schema.string() })
     }
   },
   handler: async (req, res) => {
@@ -218,29 +236,54 @@ const db = inject<PrismaClient>("DATABASE");
 Assemble controllers, middlewares, and providers in an un-opinionated standard.
 
 ```typescript
-import { NuralApplication, Logger } from "@nuraljs/core";
-import { FastifyAdapter } from "@nuraljs/core/adapters";
+import { Nural, Logger } from "@nuraljs/core";
 import { createUserController } from "./users/user.controller";
-import { loggerMiddleware } from "./middleware/logger";
 import { DatabaseProvider } from "./providers/db.provider";
 
 async function bootstrap() {
-  const app = new NuralApplication(new FastifyAdapter());
-  
-  // Register Pipeline
-  app.use(loggerMiddleware);
+  const app = new Nural({ framework: "fastify" });
   
   // Register Providers
-  app.registerProvider(DatabaseProvider);
+  await app.registerProvider(DatabaseProvider);
   
   // Register Routes
-  app.register(createUserController);
+  app.register([createUserController]);
   
-  await app.listen(3000);
+  await app.start(3000);
   Logger.info("Server started on port 3000");
 }
 
 bootstrap();
+```
+
+---
+
+## 🔌 WebSockets (Schema-First)
+
+Nural provides a schema-first WebSocket implementation via `createGateway`.
+
+```typescript
+import { createGateway, Schema } from "@nuraljs/core";
+
+export const chatGateway = createGateway({
+  namespace: "/chat",
+  events: {
+    "send-message": {
+      payload: Schema.object({
+        roomId: Schema.string(),
+        content: Schema.string()
+      }),
+      handler: async (ctx) => {
+        // ctx.data is fully typed & validated
+        const { roomId, content } = ctx.data;
+        ctx.socket.to(roomId).emit("new-message", content);
+      }
+    }
+  }
+});
+
+// Register it
+app.registerGateway(chatGateway);
 ```
 
 ---
@@ -266,8 +309,6 @@ const app = new Nural({
     hsts: { maxAge: 31536000, includeSubDomains: true },
   },
 });
-  },
-});
 ```
 
 ---
@@ -277,7 +318,7 @@ const app = new Nural({
 Throw standard exceptions anywhere in your code, and Nural automatically formats them into standard JSON error responses.
 
 ```typescript
-import { NotFoundException, UnauthorizedException } from "nural";
+import { NotFoundException, UnauthorizedException } from "@nuraljs/core";
 
 // In your service or handler
 if (!user) {
@@ -351,6 +392,21 @@ const app = new Nural({
 | `ServiceUnavailableException`   | 503         |
 | `GatewayTimeoutException`       | 504         |
 
+### Exception Filters
+
+Catch standard errors globally or per-route with functional exception filters:
+
+```typescript
+import { defineExceptionFilter } from "@nuraljs/core";
+
+export const httpExceptionFilter = defineExceptionFilter({
+  catch: (error) => error instanceof CustomException,
+  handler: (error, ctx) => {
+    ctx.res.status(400).send({ custom: true, error: error.message });
+  }
+});
+```
+
 ---
 
 ## Logger
@@ -373,7 +429,8 @@ logger.error("Something went wrong");
 The HTTP logger middleware is enabled by default and logs all incoming requests with their status and duration.
 
 ```typescript
-const app = new NuralApplication(new FastifyAdapter(), {
+const app = new Nural({
+  framework: "fastify",
   logger: {
     enabled: true,
     showUserAgent: true, // Log User-Agent header
@@ -397,19 +454,18 @@ npm install @nuraljs/testing --save-dev
 ```typescript
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { NuralTest, TestClient } from "@nuraljs/testing";
-import { NuralApplication } from "@nuraljs/core";
-import { FastifyAdapter } from "@nuraljs/core/adapters";
+import { Nural } from "@nuraljs/core";
 import { helloRoute } from "./hello.route";
 
 describe("Hello API", () => {
-  let app: NuralApplication;
+  let app: Nural;
   let client: TestClient;
 
   beforeAll(async () => {
-    app = new NuralApplication(new FastifyAdapter());
-    app.register(helloRoute);
+    app = new Nural({ framework: "fastify" });
+    app.register([helloRoute]);
     
-    // NuralTest auto-detects adapters and mounts the correct mock agent
+    // NuralTest auto-detects framework and mounts the correct mock agent
     client = await NuralTest.createClient(app);
   });
 
