@@ -147,30 +147,41 @@ export const createUserController = createRoute({
 });
 ```
 
-### 2. Global Middleware
-Hooking into the pipeline is functionally declared rather than using Object decorators.
+### 2. Global & Local Middleware (Context Injection)
+Middleware shouldn't just run code; it should inject type-safe context. Nural middleware returns an object that gets deeply merged into the request context.
 
 ```typescript
 import { defineMiddleware } from "@nuraljs/core";
+import { User } from "./models/user.model";
 
-export const loggerMiddleware = defineMiddleware(async (req, res, next) => {
-  console.log(`[${req.method}] ${req.url}`);
-  await next();
+export const authMiddleware = defineMiddleware(async (req) => {
+  const token = req.headers.authorization;
+  if (!token) return { user: null }; // Inject null user
+
+  const user = await User.findByToken(token);
+  return { user }; // 🟢 Inject user into context
 });
 ```
 
 ### 3. Guards (Authorization)
-Guards determine whether a request should be handled by the route handler.
+Guards receive the request and the **strongly-typed injected context** from your middleware.
 
 ```typescript
-import { defineGuard } from "@nuraljs/core";
+import { defineGuard, UnauthorizedException } from "@nuraljs/core";
+// Import middleware for Type Inference
+import { authMiddleware } from "./auth.middleware";
+import type { MergeMiddlewareTypes } from "@nuraljs/core";
 
-export const rolesGuard = defineGuard(async (req, res, next) => {
-  const user = req.user; // Set by auth middleware
+// Infer the context 
+type MyContext = MergeMiddlewareTypes<[typeof authMiddleware]>;
+
+export const authGuard = defineGuard<MyContext>((req, ctx) => {
+  if (!ctx.user) {
+    throw new UnauthorizedException("Authentication required"); 
+  }
   
-  if (!user || user.role !== "admin") {
-    // Return false to throw 403 Forbidden
-    return false; 
+  if (ctx.user.role !== "admin") {
+    return false; // Automatically throws 403 Forbidden
   }
   
   return true;
@@ -180,7 +191,8 @@ export const rolesGuard = defineGuard(async (req, res, next) => {
 export const adminRoute = createRoute({
   method: "GET",
   path: "/admin",
-  guards: [rolesGuard],
+  middleware: [authMiddleware],
+  guards: [authGuard],
   // ...
 });
 ```
@@ -209,7 +221,7 @@ export const timeoutInterceptor = defineInterceptor(async (req, res, next) => {
 ```
 
 ### 5. Dependency Injection (Providers)
-Create singletons or scoped services using functional Providers.
+Create singletons or scoped services using functional Providers. Nural automatically manages connection (`setup`) and graceful cleanup (`teardown`).
 
 ```typescript
 import { defineProvider, inject } from "@nuraljs/core";
@@ -218,26 +230,52 @@ import { PrismaClient } from "@prisma/client";
 export const DatabaseProvider = defineProvider({
   token: "DATABASE",
   scope: "SINGLETON",
-  factory: async () => {
+  setup: async () => {
     const prisma = new PrismaClient();
     await prisma.$connect();
     return prisma;
   },
-  onApplicationShutdown: async (prisma) => {
+  teardown: async (prisma) => {
     await prisma.$disconnect();
   }
 });
 
-// Inside a controller or service
+// Inside a controller or service (Functional Injection)
 const db = inject<PrismaClient>("DATABASE");
 ```
 
-### 6. Application Assembly
-Assemble controllers, middlewares, and providers in an un-opinionated standard.
+### 6. Route Builders & Modules
+Group related routes, apply shared middleware, and prefix paths using Route Builders and Modules.
+
+```typescript
+import { createBuilder, createModule } from "@nuraljs/core";
+import { authMiddleware } from "./auth.middleware";
+import { authGuard } from "./auth.guard";
+
+// 1. Create a Builder for secured routes
+export const protectedRoute = createBuilder([authMiddleware], [authGuard]);
+
+// 2. Use the Builder
+export const getProfile = protectedRoute({
+  method: "GET",
+  path: "/me",
+  handler: async ({ ctx }) => ctx.user
+});
+
+// 3. Group into a Module
+export const usersModule = createModule({
+  prefix: "/users",
+  tags: ["Users"],
+  routes: [getProfile]
+});
+```
+
+### 7. Application Assembly
+Assemble modules, middlewares, and providers in an un-opinionated standard.
 
 ```typescript
 import { Nural, Logger } from "@nuraljs/core";
-import { createUserController } from "./users/user.controller";
+import { usersModule } from "./users/user.module";
 import { DatabaseProvider } from "./providers/db.provider";
 
 async function bootstrap() {
@@ -246,8 +284,8 @@ async function bootstrap() {
   // Register Providers
   await app.registerProvider(DatabaseProvider);
   
-  // Register Routes
-  app.register([createUserController]);
+  // Register Modules
+  app.registerModule(usersModule);
   
   await app.start(3000);
   Logger.info("Server started on port 3000");
@@ -284,6 +322,26 @@ export const chatGateway = createGateway({
 
 // Register it
 app.registerGateway(chatGateway);
+```
+
+---
+
+## ⏰ Cron Jobs (Schema-First)
+
+Nural allows you to define declarative, schema-first scheduled tasks:
+
+```typescript
+import { Nural } from "@nuraljs/core";
+
+app.registerCron({
+  name: 'SyncData',
+  schedule: '0 0 * * *', // Every midnight
+  task: async () => {
+    app.logger.info("Executing daily sync...");
+    // Business logic
+  },
+  runOnInit: true // Execute immediately on boot
+});
 ```
 
 ---
@@ -409,34 +467,62 @@ export const httpExceptionFilter = defineExceptionFilter({
 
 ---
 
-## Logger
+## Logger & Observability
 
-Nural comes with a built-in, zero-dependency logger that is lightweight and colorful.
+Nural comes with a built-in, zero-dependency advanced logger supporting:
+- **Pretty Console Logging** for development
+- **File Transport Logging** (structured JSON) for production
+- **Correlation IDs (UUIDs)** automatically injected into requests
+- **Configurable HTTP Logging** 
 
+```typescript
+import { Nural } from "@nuraljs/core";
+
+const app = new Nural({
+  framework: "fastify",
+  logger: {
+    // Global Settings
+    enabled: true,
+    minLevel: "debug", 
+    timestamp: true, 
+
+    // 1. Console Transport (Developer Experience)
+    console: {
+      enabled: true,
+      json: false, // Pretty print
+      minLevel: "debug",
+      correlationId: false // Clean console
+    },
+
+    // 2. File Transport (Observability)
+    file: {
+      enabled: true,
+      path: "./logs/app.log",
+      json: true, // Structured logs
+      minLevel: "info",
+      correlationId: true // Track UUIDs across requests
+    },
+
+    // 3. HTTP Request Logging
+    http: {
+      userAgent: true,
+    }
+  }
+});
+```
+
+Using the Logger inside your services:
 ```typescript
 import { Logger } from "@nuraljs/core";
 
 const logger = new Logger("MyService");
 
-logger.log("This is a log message");
+logger.info("Service initialized");
 logger.warn("Be careful!");
 logger.error("Something went wrong");
-// Output: [Nural] 1234 - 2026-02-08... [MyService] This is a log message
+// Output: [Nural] 1234 - 2026-02-08... [MyService] Service initialized
 ```
 
-### HTTP Logger
-
-The HTTP logger middleware is enabled by default and logs all incoming requests with their status and duration.
-
-```typescript
-const app = new Nural({
-  framework: "fastify",
-  logger: {
-    enabled: true,
-    showUserAgent: true, // Log User-Agent header
-    showTime: true, // Log request duration (default: true)
-  },
-});
 ```
 
 ---
@@ -581,6 +667,9 @@ const app = new Nural({
 | `description`    | `string?`                   | Detailed description                           |
 | `tags`           | `string[]?`                 | Grouping for docs                              |
 | `middleware`     | `array?`                    | Middleware functions                           |
+| `guards`         | `array?`                    | Guard functions                                |
+| `interceptors`   | `array?`                    | Interceptor functions                          |
+| `inject`         | `object?`                   | Services to inject into context                |
 | `request.params` | `ZodSchema?`                | Path params validation                         |
 | `request.query`  | `ZodSchema?`                | Query params validation                        |
 | `request.body`   | `ZodSchema?`                | Body validation                                |
@@ -632,8 +721,13 @@ The `handler` receives a `ctx` object containing:
 ```
 
 ### `defineMiddleware(fn)`
+Creates a type-safe middleware that injects context into handlers (`ctx`).
 
-Creates a type-safe middleware that injects context into handlers.
+### `defineGuard<Context>(fn)`
+Creates a guard that approves or rejects a request based on context or metadata.
+
+### `defineInterceptor(fn)`
+Creates an interceptor that wraps route execution, allowing modification of responses or catching deep errors.
 
 ### `new Nural(config)`
 
