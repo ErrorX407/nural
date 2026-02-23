@@ -3,4 +3,4 @@
  * Re-exports documentation components
  */
 
-export { DocumentationGenerator } from "./generator";
+export { DocumentationGenerator } from "./openapi.generator";

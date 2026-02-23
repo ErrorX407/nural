@@ -1,6 +1,6 @@
 import { Server } from "socket.io";
-import { Logger } from "../core/logger";
-import { GatewayBuilder, GatewayConfig } from "../types";
+import { Logger } from "../common/logger.provider";
+import { GatewayBuilder, GatewayConfig } from "../common/websocket.types";
 
 export class SocketIoAdapter {
   private io: Server | null = null;

@@ -12,12 +12,12 @@ importers:
 
   .:
     dependencies:
+      '@nuraljs/core':
+        specifier: link:../../../AppData/Local/pnpm/global/5/node_modules/nural
+        version: link:../../../AppData/Local/pnpm/global/5/node_modules/nural
       cli:
         specifier: link:../../../AppData/Local/pnpm/global/5/node_modules/@nural/cli
         version: link:../../../AppData/Local/pnpm/global/5/node_modules/@nural/cli
-      nural:
-        specifier: link:packages/core
-        version: link:packages/core
     devDependencies:
       '@changesets/cli':
         specifier: ^2.27.1
@@ -28,6 +28,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@nuraljs/core':
+        specifier: workspace:*
+        version: link:../core
       chalk:
         specifier: ^5.3.0
         version: 5.6.2
@@ -132,31 +135,34 @@ importers:
 
   packages/testing:
     dependencies:
-      '@types/supertest':
-        specifier: ^6.0.3
-        version: 6.0.3
       light-my-request:
         specifier: ^6.6.0
         version: 6.6.0
-      nural:
-        specifier: link:../core
-        version: link:../core
       supertest:
         specifier: ^7.2.2
         version: 7.2.2
     devDependencies:
+      '@nuraljs/core':
+        specifier: workspace:*
+        version: link:../core
       '@types/node':
-        specifier: ^20.0.0
+        specifier: ^20.11.16
         version: 20.19.33
+      '@types/supertest':
+        specifier: ^6.0.2
+        version: 6.0.3
       fastify:
         specifier: ^4.0.0
         version: 4.29.1
       tsup:
-        specifier: ^8.0.0
+        specifier: ^8.0.2
         version: 8.5.1(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.3.3
         version: 5.9.3
+      vitest:
+        specifier: ^1.3.1
+        version: 1.6.1(@types/node@20.19.33)
 
 packages:
 

@@ -15,6 +15,6 @@
   },
   "dependencies": {
     "cli": "link:../../../AppData/Local/pnpm/global/5/node_modules/@nural/cli",
-    "nural": "link:../../../AppData/Local/pnpm/global/5/node_modules/nural"
+    "@nuraljs/core": "link:../../../AppData/Local/pnpm/global/5/node_modules/nural"
   }
 }

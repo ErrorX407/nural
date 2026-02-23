@@ -1,26 +1,27 @@
 import { Command } from "commander";
-import { newCommand } from "./commands/new.js";
-import { generateCommand } from "./commands/generate.js";
-import { addCommand } from "./commands/add.js";
-import { infoCommand } from "./commands/info.js";
-import { devCommand } from "./commands/dev.js";
-import { buildCommand } from "./commands/build.js";
-import { startCommand } from "./commands/start.js";
-import { testCommand } from "./commands/test.js";
-import { docsCommand } from "./commands/docs.js";
-import { routesCommand } from "./commands/routes.js";
-import { consoleCommand } from "./commands/console.js";
-import { cleanCommand } from "./commands/clean.js";
-import { doctorCommand } from "./commands/doctor.js";
-import { completionCommand } from "./commands/completion.js";
-import { updateCommand } from "./commands/update.js";
+import { newCommand } from "./commands/new.command";
+import { generateCommand } from "./commands/generate.command";
+import { addCommand } from "./commands/add.command";
+import { infoCommand } from "./commands/info.command";
+import { devCommand } from "./commands/dev.command";
+import { buildCommand } from "./commands/build.command";
+import { startCommand } from "./commands/start.command";
+import { testCommand } from "./commands/test.command";
+import { docsCommand } from "./commands/docs.command";
+import { routesCommand } from "./commands/routes.command";
+import { consoleCommand } from "./commands/console.command";
+import { cleanCommand } from "./commands/clean.command";
+import { doctorCommand } from "./commands/doctor.command";
+import { completionCommand } from "./commands/completion.command";
+import { updateCommand } from "./commands/update.command";
+import pkg from "../package.json";
 
 const program = new Command();
 
 program
   .name("nural")
-  .description("Nural CLI - The intelligent framework tool")
-  .version("0.4.2");
+  .description("The official NuralJS CLI")
+  .version(pkg.version || "0.5.0");
 
 program
   .command("new <project-name>")

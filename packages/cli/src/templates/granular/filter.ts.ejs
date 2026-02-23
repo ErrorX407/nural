@@ -1,4 +1,4 @@
-import { defineExceptionFilter } from "nural";
+import { defineExceptionFilter } from "@nuraljs/core";
 
 export const <%= camelName %>Filter = defineExceptionFilter(async (err, req, res, ctx) => {
   console.error(`[${ctx.handlerName}] Error:`, err);

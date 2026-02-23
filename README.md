@@ -87,65 +87,160 @@ const helloRoute = createRoute({
     200: z.object({ message: z.string() }),
   },
   handler: async () => {
-    return { message: "Hello from Nural!", secret: "HIDDEN" };
-    // ↑ 'secret' is auto-stripped from response!
-  },
-});
+    return { message: "Hello from NuralJS
 
-// Register and start
-app.register([helloRoute]);
-app.start(3000);
-// 🚀 Server: http://localhost:3000
-// 📚 Docs:   http://localhost:3000/docs
+The official REST Framework for NuralJS. Nural is built around `Zod` and functional modules for ultimate intelligence. 
+```bash
+npm install @nuraljs/core
 ```
 
----
+### Installation
 
-## Validation
+```bash
+pnpm install @nuraljs/core zod
+# or
+npm install @nuraljs/core zod
+```
+
+### 1. Controllers (Schema First)
+Requests are functionally typed using strict validation. We use standard `try/catch` handlers for safety.
 
 ```typescript
-const userRoute = createRoute({
+import { createRoute, z } from "@nuraljs/core";
+import { CreateUserDTO } from "./create-user.dto";
+
+export const createUserController = createRoute({
   method: "POST",
   path: "/users",
-  request: {
-    body: z.object({
-      name: z.string().min(2),
-      email: z.string().email(),
-    }),
+  schema: {
+    body: CreateUserDTO,
+    response: {
+      201: z.object({ id: z.string(), message: z.string() }),
+      400: z.object({ error: z.string() })
+    }
   },
-  responses: {
-    201: z.object({ id: z.string(), name: z.string() }),
-  },
-  handler: async ({ body }) => {
-    // body is typed as { name: string, email: string }
-    return { id: "uuid", name: body.name };
-  },
+  handler: async (req, res) => {
+    // req.body is fully typed as CreateUserDTO
+    const { name, email } = req.body;
+    
+    // Process business logic...
+    return res.status(201).send({ id: "123", message: "User created" });
+  }
 });
 ```
 
----
-
-## Middleware
+### 2. Global Middleware
+Hooking into the pipeline is functionally declared rather than using Object decorators.
 
 ```typescript
-import { defineMiddleware } from "nural";
+import { defineMiddleware } from "@nuraljs/core";
 
-const authMiddleware = defineMiddleware(async (req) => {
-  const token = req.headers.authorization;
-  if (!token) throw new Error("Unauthorized");
-  return { user: { id: "123", role: "admin" } };
+export const loggerMiddleware = defineMiddleware(async (req, res, next) => {
+  console.log(`[${req.method}] ${req.url}`);
+  await next();
+});
+```
+
+### 3. Guards (Authorization)
+Guards determine whether a request should be handled by the route handler.
+
+```typescript
+import { defineGuard } from "@nuraljs/core";
+
+export const rolesGuard = defineGuard(async (req, res, next) => {
+  const user = req.user; // Set by auth middleware
+  
+  if (!user || user.role !== "admin") {
+    // Return false to throw 403 Forbidden
+    return false; 
+  }
+  
+  return true;
 });
 
-const meRoute = createRoute({
+// Attach to route
+export const adminRoute = createRoute({
   method: "GET",
-  path: "/me",
-  middleware: [authMiddleware],
-  responses: { 200: z.object({ id: z.string(), role: z.string() }) },
-  handler: async ({ user }) => {
-    // ↑ 'user' is inferred from middleware!
-    return user;
-  },
+  path: "/admin",
+  guards: [rolesGuard],
+  // ...
 });
+```
+
+### 4. Interceptors (Response Transformation)
+Interceptors can bind extra logic before/after execution, mutate responses, or handle caching.
+
+```typescript
+import { defineInterceptor } from "@nuraljs/core";
+
+export const timeoutInterceptor = defineInterceptor(async (req, res, next) => {
+  const start = Date.now();
+  
+  // Await the route execution
+  const result = await next();
+  
+  const end = Date.now();
+  console.log(`Execution time: ${end - start}ms`);
+  
+  // Mutate or wrap response
+  return {
+    data: result,
+    _metadata: { timestamp: new Date() }
+  };
+});
+```
+
+### 5. Dependency Injection (Providers)
+Create singletons or scoped services using functional Providers.
+
+```typescript
+import { defineProvider, inject } from "@nuraljs/core";
+import { PrismaClient } from "@prisma/client";
+
+export const DatabaseProvider = defineProvider({
+  token: "DATABASE",
+  scope: "SINGLETON",
+  factory: async () => {
+    const prisma = new PrismaClient();
+    await prisma.$connect();
+    return prisma;
+  },
+  onApplicationShutdown: async (prisma) => {
+    await prisma.$disconnect();
+  }
+});
+
+// Inside a controller or service
+const db = inject<PrismaClient>("DATABASE");
+```
+
+### 6. Application Assembly
+Assemble controllers, middlewares, and providers in an un-opinionated standard.
+
+```typescript
+import { NuralApplication, Logger } from "@nuraljs/core";
+import { FastifyAdapter } from "@nuraljs/core/adapters";
+import { createUserController } from "./users/user.controller";
+import { loggerMiddleware } from "./middleware/logger";
+import { DatabaseProvider } from "./providers/db.provider";
+
+async function bootstrap() {
+  const app = new NuralApplication(new FastifyAdapter());
+  
+  // Register Pipeline
+  app.use(loggerMiddleware);
+  
+  // Register Providers
+  app.registerProvider(DatabaseProvider);
+  
+  // Register Routes
+  app.register(createUserController);
+  
+  await app.listen(3000);
+  Logger.info("Server started on port 3000");
+}
+
+bootstrap();
 ```
 
 ---
@@ -263,7 +358,7 @@ const app = new Nural({
 Nural comes with a built-in, zero-dependency logger that is lightweight and colorful.
 
 ```typescript
-import { Logger } from "nural";
+import { Logger } from "@nuraljs/core";
 
 const logger = new Logger("MyService");
 
@@ -278,12 +373,56 @@ logger.error("Something went wrong");
 The HTTP logger middleware is enabled by default and logs all incoming requests with their status and duration.
 
 ```typescript
-const app = new Nural({
+const app = new NuralApplication(new FastifyAdapter(), {
   logger: {
     enabled: true,
     showUserAgent: true, // Log User-Agent header
     showTime: true, // Log request duration (default: true)
   },
+});
+```
+
+---
+
+## Testing (`@nuraljs/testing`)
+
+Nural brings zero-configuration, engine-agnostic E2E testing using unified APIs built over `supertest` and `light-my-request`.
+
+```bash
+npm install @nuraljs/testing --save-dev
+```
+
+### E2E Testing
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { NuralTest, TestClient } from "@nuraljs/testing";
+import { NuralApplication } from "@nuraljs/core";
+import { FastifyAdapter } from "@nuraljs/core/adapters";
+import { helloRoute } from "./hello.route";
+
+describe("Hello API", () => {
+  let app: NuralApplication;
+  let client: TestClient;
+
+  beforeAll(async () => {
+    app = new NuralApplication(new FastifyAdapter());
+    app.register(helloRoute);
+    
+    // NuralTest auto-detects adapters and mounts the correct mock agent
+    client = await NuralTest.createClient(app);
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("should return 200 OK", async () => {
+    const res = await client.get("/hello");
+    
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ message: "Hello from Nural" });
+  });
 });
 ```
 

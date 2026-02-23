@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-02-23
+
+### 🚀 Added
+- **Dependency Injection**: Added `defineProvider` and `inject()` for robust singleton and scoped provider injection.
+- **Advanced Pipeline**: Added `defineGuard` for authorization and `defineInterceptor` for response transformation/caching.
+- **Testing Module**: Introduced `@nuraljs/testing` providing zero-config, engine-agnostic E2E testing via `NuralTest` and `TestClient`.
+- **Exception Filters**: Added a unified exception system with smart mapping (e.g., `NotFoundException`, `UnauthorizedException`) to standardized JSON responses.
+- **CLI Architecture**: Extracted CLI terminal UI into `CliLogger` and `CliPrompts`.
+- **CLI Scaffold Destructuring**: Broke down the CLI scaffolding engine into single-responsibility Factory and Service modules.
+- **Unit Tests**: Added comprehensive test suites across the core framework and CLI under `__tests__/` directories.
+
+### 🔄 Changed
+- **Mass Rename**: Renamed the functional NPM packages from `nural` to `@nuraljs/core`, `@nuraljs/cli`, and `@nuraljs/testing` to resolve NPM registry conflicts.
+- **Import Statements**: Updated all scaffolded EJS templates to natively import from `@nuraljs/core`.
+- **CLI Commands**: Renamed all CLI command files to the NestJS-style `.command.ts` convention (e.g., `dev.ts` -> `dev.command.ts`).
+- **Internal Domains**: Restructured tests alongside their corresponding domain logic (e.g., `src/pipeline/__tests__/`).
+- **Module Resolution**: Updated CLI `tsconfig` to use `moduleResolution: Bundler` and removed legacy `.js` extensions from local imports.
+
+### 🐛 Fixed
+- Fixed strict TypeScript indexing errors (`noPropertyAccessFromIndexSignature`) in testing environments.
+- Corrected monorepo build failures by appropriately linking workspace dependencies across the new `@nuraljs/*` scope.
+
+---
+
 ## [0.6.0] - 2026-02-18
 
 ### 🚀 Features (WebSockets)
