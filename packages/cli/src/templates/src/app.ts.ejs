@@ -1,0 +1,38 @@
+import { Nural } from "@nuraljs/core";
+import { env } from "./config/env";
+<% if (integrations.includes('ws')) { %>import http from "http";<% } %>
+<% if (integrations.includes('ws')) { %>import { Server } from "socket.io";<% } %>
+import { authModule } from "./modules/auth/auth.module";
+
+export const app = new Nural({
+  framework: "<%= framework %>",
+  docs: true,
+  logger: {
+    enabled: true,
+    showTime: true,
+  },
+  <% if (integrations.includes('ws')) { %>cors: { origin: "*" }, // Socket.io needs CORS<% } %>
+});
+
+// Register Modules
+app.registerModule(authModule);
+
+<% if (integrations.includes('ws')) { %>
+export function attachSockets(server: http.Server) {
+  const io = new Server(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
+
+  io.on("connection", (socket) => {
+    console.log(`⚡ Client connected: ${socket.id}`);
+    socket.on("disconnect", () => {
+      console.log(`❌ Client disconnected: ${socket.id}`);
+    });
+  });
+
+  return io;
+}
+<% } %>

@@ -1,0 +1,19 @@
+import { Schema } from "@nuraljs/core";
+
+/**
+ * Response Schemas
+ * Defines the contract for outgoing data.
+ */
+
+export const UserResponse = Schema.object({
+  id: Schema.string(),
+  email: Schema.string(),
+  name: Schema.string().optional(),
+  role: Schema.enum(["admin", "user"]),
+});
+
+export const AuthResponse = Schema.object({
+  accessToken: Schema.string(),
+  refreshToken: Schema.string(),
+  user: UserResponse,
+});
